@@ -3,9 +3,5 @@ Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio 
 
 **This is very much a work in progress**
 
-Once the basic experiments are worked through in the notebooks, the entire repo will be refactored.
 
-
-**Disclaimer**
-
-I do not represent or work for Deepmind.
+**Disclaimer** I do not represent or work for Deepmind.
