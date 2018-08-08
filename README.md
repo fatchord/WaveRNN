@@ -15,7 +15,7 @@ Notebooks 1 - 4 are self-contained however notebooks 5a and 5b need to be run se
 
 ### Dependencies
 * Python 3
-* Pytorch v.04
+* Pytorch v0.4
 * Librosa
 
 **Disclaimer** I do not represent or work for Deepmind/Google.
