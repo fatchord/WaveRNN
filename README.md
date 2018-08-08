@@ -10,10 +10,11 @@ Currently, there are two models in this repo. The first is WaveRNN, however it i
 
 The good news is that I came up with another model that trains much faster and can handle the noise in predicted features from Tacotron and similar models. The sound quality is not as good as Wavenet but it's not that far off. [You can listen to the samples here and judge for yourself.](https://fatchord.github.io/model_outputs/)
 
-Notebooks 1 - 4 are self-contained however notebooks 5a and 5b need to be run sequentially. You can stop notebook 5b (training) whenever you like and it will pick up where you left off. 
+Notebooks 1 - 4 are self-contained however notebooks 5a and 5b need to be run sequentially. You can stop & close notebook 5b (training) whenever you like and it will pick up from where you left off.
 
 
 ### Dependencies
+* Python 3
 * Pytorch v.04
 * Librosa
 
