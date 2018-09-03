@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import time, sys, math
 import numpy as np
 
-def display(string, variables) :
+def stream(string, variables) :
     sys.stdout.write(f'\r{string}' % variables)
     
 def num_params(model) :
