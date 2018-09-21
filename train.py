@@ -116,7 +116,7 @@ def generate(samples=1, mulaw=False):
         librosa.output.write_wav(
             f"{GEN_PATH}{k}k_steps_{i}_target.wav", gt, sr=ap.sample_rate
         )
-        output = model.generate(mel)
+        output = model.module.generate(mel)
         if mulaw:
             output = ap.mulaw_decoder(output, 2 ** bits)
         librosa.output.write_wav(
