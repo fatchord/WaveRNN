@@ -54,7 +54,7 @@ def collate(batch):
     return x_input, mels, y_coarse
 
 
-def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, step):
+def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, step, lr):
     global CONFIG
     # loss_threshold = 4.0
     # create train loader
