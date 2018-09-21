@@ -92,11 +92,12 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
             avg_loss = running_loss / (i + 1)
             step += 1
             scheduler.step()
+            cur_lr = optimizer.param_groups[0]['lr']
             if step % CONFIG.print_step == 0:
                 print(
                     " | > Epoch: {}/{} -- Batch: {}/{} -- Loss: {:.3f}"
-                    " -- Speed: {:.2f} steps/sec -- Step: {}".format(
-                        e + 1, epochs, i + 1, iters, avg_loss, speed, step
+                    " -- Speed: {:.2f} steps/sec -- Step: {} -- lr: {}".format(
+                        e + 1, epochs, i + 1, iters, avg_loss, speed, step, cur_lr
                     )
                 )
             if step % CONFIG.checkpoint_step == 0:
