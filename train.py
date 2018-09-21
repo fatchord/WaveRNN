@@ -102,10 +102,10 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
                 print(" > modelsaved")
         # validation loop
         running_val_loss = 0
-        generate()
+        generate(step)
 
 
-def generate(samples=1, mulaw=False):
+def generate(step, samples=1, mulaw=False):
     global output
     k = step // 1000
     test_mels = [np.load(f"{DATA_PATH}mel/{id}.npy") for id in test_ids[:samples]]
@@ -184,9 +184,7 @@ if __name__ == "__main__":
     ).cuda()
     model = nn.DataParallel(model)
 
-    global step
     step=0
-
     # restore any checkpoint
     if args.restore_path:    
         checkpoint = torch.load(MODEL_PATH)
