@@ -128,7 +128,7 @@ class Model(nn.Module):
         num_params(self)
 
     def forward(self, x, mels):
-        bsize = x.size(0)
+        bsize = mels.size(0)
 
         # hidden rnn states
         h1 = torch.zeros(1, bsize, self.rnn_dims).cuda()
@@ -173,7 +173,6 @@ class Model(nn.Module):
         return mels, aux
 
     def generate(self, mels):
-        self.eval()
         output = []
         rnn1 = self.get_gru_cell(self.rnn1)
         rnn2 = self.get_gru_cell(self.rnn2)
@@ -195,7 +194,7 @@ class Model(nn.Module):
 
             seq_len = mels.size(1)
 
-            for i in tqdm(range(seq_len)):
+            for i in range(seq_len):
 
                 m_t = mels[:, i, :]
                 a1_t = a1[:, i, :]
@@ -228,7 +227,6 @@ class Model(nn.Module):
         #                     print("{}/{} -- Speed: {} samples/sec".format(i + 1, seq_len, speed))
         output = torch.stack(output).cpu().numpy()
         output = ap.apply_inv_preemphasis(output)
-        self.train()
         return output
 
     def get_gru_cell(self, gru):

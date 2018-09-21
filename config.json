@@ -1,0 +1,24 @@
+{
+    "run_name": "wavenetrnn",
+    "bits": 9,
+
+    "num_mels": 80,
+    "num_freq": 1025,
+    "sample_rate": 22000,
+    "frame_length_ms": 50,
+    "frame_shift_ms": 12.5,
+    "preemphasis": 0,
+    "min_level_db": -100,
+    "ref_level_db": 20,
+    "power": 1.5,
+
+    "epochs": 1000,
+    "lr": 0.001,
+    "batch_size": 256,
+    "checkpoint_step": 1000,
+    "print_step": 10,
+    "num_workers": 16,
+
+    "data_path": "/snakepit/shared/data/keithito/LJSpeech-1.1/wavs/",
+    "out_path": "tmp/"
+}
