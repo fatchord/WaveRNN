@@ -228,6 +228,7 @@ class Model(nn.Module):
         #                     print("{}/{} -- Speed: {} samples/sec".format(i + 1, seq_len, speed))
         output = torch.stack(output).cpu().numpy()
         output = ap.apply_inv_preemphasis(output)
+        self.train()
         return output
 
     def get_gru_cell(self, gru):
