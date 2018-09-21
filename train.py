@@ -9,7 +9,7 @@ from torch import optim
 from torch.utils.data import Dataset, DataLoader
 from utils.display import *
 from utils.audio import AudioProcessor
-from utils.generic_utils import load_config, save_checkpoint
+from utils.generic_utils import load_config, save_checkpoint, AnnealLR
 from tqdm import tqdm
 from models.wavernn import Model
 
@@ -67,6 +67,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
     for p in optimizer.param_groups:
         p["lr"] = lr
 
+    scheduler = AnnealLR(optimizer, warmup_steps=CONFIG.warmup_steps)
     for e in range(epochs):
         running_loss = 0.
         # TODO: write validation iteration
@@ -90,6 +91,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
             speed = (i + 1) / (time.time() - start)
             avg_loss = running_loss / (i + 1)
             step += 1
+            scheduler.step()
             if step % CONFIG.print_step == 0:
                 print(
                     " | > Epoch: {}/{} -- Batch: {}/{} -- Loss: {:.3f}"

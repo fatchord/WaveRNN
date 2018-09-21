@@ -13,11 +13,12 @@
     "power": 1.5,
 
     "epochs": 1000,
-    "lr": 0.0001,
-    "batch_size": 16,
+    "lr": 0.001,
+    "warmup_steps": 3000,
+    "batch_size": 512,
     "checkpoint_step": 1000,
     "print_step": 10,
-    "num_workers": 4,
+    "num_workers": 16,
 
     "data_path": "/snakepit/shared/data/keithito/LJSpeech-1.1/wavs/",
     "out_path": "tmp/"
