@@ -1,4 +1,5 @@
 import librosa
+import shutil
 import argparse
 import matplotlib.pyplot as plt
 import math, pickle, os
@@ -161,6 +162,7 @@ if __name__ == "__main__":
     MODEL_PATH = f"{OUT_PATH}/model_checkpoints/"
     DATA_PATH = f"{OUT_PATH}/data/"
     GEN_PATH = f"{OUT_PATH}/model_outputs/"
+    shutil.copyfile(args.config_path, os.path.join(OUT_PATH, 'config.json'))
 
     # create paths
     os.makedirs(MODEL_PATH, exist_ok=True)

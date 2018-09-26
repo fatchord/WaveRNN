@@ -51,8 +51,7 @@ if __name__ == "__main__":
     CONFIG = load_config(config_path)
     ap = AudioProcessor(CONFIG.sample_rate, CONFIG.num_mels, CONFIG.min_level_db,
                         CONFIG.frame_shift_ms, CONFIG.frame_length_ms,
-                        CONFIG.ref_level_db, CONFIG.num_freq, CONFIG.power, CONFIG.preemphasis,
-                        griffin_lim_iters=50)   
+                        CONFIG.ref_level_db, CONFIG.num_freq, CONFIG.power, CONFIG.preemphasis)   
 
     # Point SEG_PATH to a folder containing your training wavs 
     # Doesn't matter if it's LJspeech, CMU Arctic etc. it should work fine
