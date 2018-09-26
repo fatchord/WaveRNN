@@ -13,9 +13,9 @@
     "power": 1.5,
 
     "epochs": 1000,
-    "lr": 0.005,
+    "lr": 0.0005,
     "warmup_steps": 3000,
-    "batch_size": 512,
+    "batch_size": 16,
     "checkpoint_step": 1000,
     "print_step": 10,
     "num_workers": 16,
