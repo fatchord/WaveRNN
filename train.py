@@ -97,7 +97,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
             if step % CONFIG.print_step == 0:
                 print(
                     " | > Epoch: {}/{} -- Batch: {}/{} -- Loss: {:.3f}"
-                    " -- Speed: {:.2f} steps/sec -- Step: {} -- lr: {}".format(
+                    " -- Speed: {:.2f} steps/sec -- Step: {} -- lr: {:}".format(
                         e + 1, epochs, i + 1, iters, avg_loss, speed, step, cur_lr
                     )
                 )
@@ -140,6 +140,7 @@ if __name__ == "__main__":
     CONFIG = load_config(args.config_path)
 
     ap = AudioProcessor(
+        CONFIG.bits,
         CONFIG.sample_rate,
         CONFIG.num_mels,
         CONFIG.min_level_db,
@@ -149,13 +150,11 @@ if __name__ == "__main__":
         CONFIG.num_freq,
         CONFIG.power,
         CONFIG.preemphasis,
-        griffin_lim_iters=50,
     )
 
     bits = CONFIG.bits
     seq_len = ap.hop_length * 5
-    run_name = "wavernn_ljspeech_ref"
-    # run_name = "wavernn_ljspeech"
+    run_name = CONFIG.run_name
 
     # set paths
     OUT_PATH = os.path.join(CONFIG.out_path, CONFIG.run_name)
