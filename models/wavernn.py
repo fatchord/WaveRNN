@@ -172,7 +172,7 @@ class Model(nn.Module):
         mels, aux = self.upsample(mels)
         return mels, aux
 
-    def generate(self, mels):
+    def generate(self, mels, verbose=False):
         output = []
         rnn1 = self.get_gru_cell(self.rnn1)
         rnn2 = self.get_gru_cell(self.rnn2)
@@ -224,9 +224,9 @@ class Model(nn.Module):
                 x = torch.FloatTensor([[sample]]).cuda()
                 if i % 100 == 0:
                     speed = int((i + 1) / (time.time() - start))
-        #                     print("{}/{} -- Speed: {} samples/sec".format(i + 1, seq_len, speed))
+                    if verbose:
+                        print("{}/{} -- Speed: {} samples/sec".format(i + 1, seq_len, speed))
         output = torch.stack(output).cpu().numpy()
-        # output = ap.apply_inv_preemphasis(output)
         return output
 
     def get_gru_cell(self, gru):

@@ -11,6 +11,7 @@ _mel_basis = None
 class AudioProcessor(object):
     def __init__(
         self,
+        bits,
         sample_rate,
         num_mels,
         min_level_db,
@@ -24,6 +25,7 @@ class AudioProcessor(object):
     ):
 
         print(" > Setting up Audio Processor...")
+        self.bits = bits
         self.sample_rate = sample_rate
         self.num_mels = num_mels
         self.min_level_db = min_level_db
@@ -169,3 +171,9 @@ class AudioProcessor(object):
 
     def encode_16bits(self, x):
         return np.clip(x * 2 ** 15, -2 ** 15, 2 ** 15 - 1).astype(np.int16)
+    
+    def quantize(self, x):
+        return (x + 1.) * (2 ** self.bits - 1) / 2
+
+    def dequantize(self, x):
+        return 2 * x / (2 ** self.bits - 1) - 1
