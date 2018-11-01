@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import datetime
 import torch
@@ -25,7 +26,12 @@ class AnnealLR(torch.optim.lr_scheduler._LRScheduler):
 
 def load_config(config_path):
     config = AttrDict()
-    config.update(json.load(open(config_path, "r")))
+    with open(config_path, "r") as f:
+        input_str = f.read()
+    input_str = re.sub(r'\\\n', '', input_str)
+    input_str = re.sub(r'//.*\n', '\n', input_str)
+    data = json.loads(input_str)
+    config.update(data)
     return config
 
 

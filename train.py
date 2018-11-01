@@ -14,8 +14,9 @@ from utils.generic_utils import load_config, save_checkpoint, AnnealLR
 from tqdm import tqdm
 from models.wavernn import Model
 
-
-torch.backends.cudnn.benchmark = True
+use_cuda = torch.cuda.is_available()
+if use_cuda:
+    torch.backends.cudnn.benchmark = True
 
 # define data classes
 class MyDataset(Dataset):
@@ -61,14 +62,18 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
     # create train loader
     dataset = MyDataset(dataset_ids, DATA_PATH)
     train_loader = DataLoader(
-        dataset, collate_fn=collate, batch_size=batch_size, num_workers=CONFIG.num_workers,
-        shuffle=True, pin_memory=True
+        dataset,
+        collate_fn=collate,
+        batch_size=batch_size,
+        num_workers=CONFIG.num_workers,
+        shuffle=True,
+        pin_memory=True,
     )
 
     for p in optimizer.param_groups:
-        p["lr"] = lr
+        p["initial_lr"] = lr
 
-    scheduler = AnnealLR(optimizer, warmup_steps=CONFIG.warmup_steps)
+    scheduler = AnnealLR(optimizer, warmup_steps=CONFIG.warmup_steps, last_epoch=step)
     for e in range(epochs):
         running_loss = 0.
         # TODO: write validation iteration
@@ -80,7 +85,8 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
         print(" > Training")
         model.train()
         for i, (x, m, y) in enumerate(train_loader):
-            x, m, y = x.cuda(), m.cuda(), y.cuda()
+            if use_cuda:
+                x, m, y = x.cuda(), m.cuda(), y.cuda()
             y_hat = model(x, m)
             y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
             y = y.unsqueeze(-1)
@@ -93,7 +99,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
             avg_loss = running_loss / (i + 1)
             step += 1
             scheduler.step()
-            cur_lr = optimizer.param_groups[0]['lr']
+            cur_lr = optimizer.param_groups[0]["lr"]
             if step % CONFIG.print_step == 0:
                 print(
                     " | > Epoch: {}/{} -- Batch: {}/{} -- Loss: {:.3f}"
@@ -136,23 +142,20 @@ if __name__ == "__main__":
     parser.add_argument(
         "--restore_path", type=str, default=0, help="path for a model to fine-tune."
     )
+
+    parser.add_argument(
+        "--data_path", type=str, default='', help="data path to overwrite config.json."
+    )
+    
     args = parser.parse_args()
     CONFIG = load_config(args.config_path)
 
-    ap = AudioProcessor(
-        CONFIG.bits,
-        CONFIG.sample_rate,
-        CONFIG.num_mels,
-        CONFIG.min_level_db,
-        CONFIG.frame_shift_ms,
-        CONFIG.frame_length_ms,
-        CONFIG.ref_level_db,
-        CONFIG.num_freq,
-        CONFIG.power,
-        CONFIG.preemphasis,
-    )
+    if args.data_path != '':
+        CONFIG.data_path = args.data_path
 
-    bits = CONFIG.bits
+    ap = AudioProcessor(**CONFIG.audio)
+
+    bits = CONFIG.audio['bits']
     seq_len = ap.hop_length * 5
     run_name = CONFIG.run_name
 
@@ -161,7 +164,7 @@ if __name__ == "__main__":
     MODEL_PATH = f"{OUT_PATH}/model_checkpoints/"
     DATA_PATH = f"{OUT_PATH}/data/"
     GEN_PATH = f"{OUT_PATH}/model_outputs/"
-    shutil.copyfile(args.config_path, os.path.join(OUT_PATH, 'config.json'))
+    shutil.copyfile(args.config_path, os.path.join(OUT_PATH, "config.json"))
 
     # create paths
     os.makedirs(MODEL_PATH, exist_ok=True)
@@ -185,19 +188,21 @@ if __name__ == "__main__":
         compute_dims=128,
         res_out_dims=128,
         res_blocks=10,
-    ).cuda()
-    model = nn.DataParallel(model)
+    )
+    if use_cuda:
+        model = nn.DataParallel(model).cuda()
+    optimizer = optim.Adam(model.parameters())
 
-    step=0
+    step = 0
     # restore any checkpoint
-    if args.restore_path:    
-        checkpoint = torch.load(MODEL_PATH)
+    if args.restore_path:
+        checkpoint = torch.load(args.restore_path)
         model.load_state_dict(checkpoint["model"])
-        step = checkpoint['step']
+        optimizer.load_state_dict(checkpoint["optimizer"])
+        step = checkpoint["step"]
 
     # define train functions
     criterion = nn.NLLLoss().cuda()
-    optimizer = optim.Adam(model.parameters())
     model.train()
 
     # HIT IT!!!

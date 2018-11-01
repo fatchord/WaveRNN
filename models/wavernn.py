@@ -88,10 +88,12 @@ class UpsampleNetwork(nn.Module):
             self.up_layers.append(conv)
 
     def forward(self, m):
+        # compute aux mel representation
         aux = self.resnet(m).unsqueeze(1)
         aux = self.resnet_stretch(aux)
         aux = aux.squeeze(1)
         m = m.unsqueeze(1)
+        # upsample mel spec.
         for f in self.up_layers:
             m = f(m)
         m = m.squeeze(1)[:, :, self.indent : -self.indent]
@@ -129,9 +131,9 @@ class Model(nn.Module):
     def forward(self, x, mels):
         bsize = mels.size(0)
 
-        # hidden rnn states
-        h1 = torch.zeros(1, bsize, self.rnn_dims).cuda()
-        h2 = torch.zeros(1, bsize, self.rnn_dims).cuda()
+        # hidden rnn states     
+        h1 = x.data.new(1, bsize, self.rnn_dims).zero_()
+        h2 = x.data.new(1, bsize, self.rnn_dims).zero_()
 
         # compute input representations from mel-spec.
         mels, aux = self.upsample(mels)
