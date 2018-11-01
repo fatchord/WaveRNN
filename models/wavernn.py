@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from WaveRNN.utils.display import *
+from utils.display import *
 
 
 class ResBlock(nn.Module):
