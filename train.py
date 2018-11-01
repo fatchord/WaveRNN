@@ -9,7 +9,10 @@ from torch import nn
 from torch import optim
 from torch.utils.data import Dataset, DataLoader
 from utils.display import *
-from utils.audio import AudioProcessor
+try:
+    from TTS.utils.audio import AudioProcessor
+except:
+    from utils.audio import AudioProcessor    
 from utils.generic_utils import load_config, save_checkpoint, AnnealLR
 from tqdm import tqdm
 from models.wavernn import Model
