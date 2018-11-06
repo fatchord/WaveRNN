@@ -90,6 +90,9 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
         for i, (x, m, y) in enumerate(train_loader):
             if use_cuda:
                 x, m, y = x.cuda(), m.cuda(), y.cuda()
+            print(x.shape)
+            print(m.shape)
+            print()
             y_hat = model(x, m)
             y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
             y = y.unsqueeze(-1)
@@ -121,8 +124,10 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
 def generate(step, samples=1, mulaw=False):
     global output
     k = step // 1000
-    test_mels = [np.load(f"{DATA_PATH}mel/{id}.npy") for id in test_ids[:samples]]
-    ground_truth = [np.load(f"{DATA_PATH}quant/{id}.npy") for id in test_ids[:samples]]
+    test_mels = [np.load(f"{DATA_PATH}mel/{test_id}.npy")]
+    ground_truth = [np.load(f"{DATA_PATH}quant/{test_id}.npy")]
+    # test_mels = [np.load(f"{DATA_PATH}mel/{id}.npy") for id in test_ids[:samples]]
+    # ground_truth = [np.load(f"{DATA_PATH}quant/{id}.npy") for id in test_ids[:samples]]
     for i, (gt, mel) in enumerate(zip(ground_truth, test_mels)):
         print("\nGenerating: %i/%i" % (i + 1, samples))
         gt = 2 * gt.astype(np.float32) / (2 ** bits - 1.) - 1.
@@ -178,6 +183,7 @@ if __name__ == "__main__":
         dataset_ids = pickle.load(f)
 
     test_ids = dataset_ids[-50:]
+    test_id = test_ids[1]
     dataset_ids = dataset_ids[:-50]
 
     # create the model

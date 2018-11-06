@@ -75,8 +75,8 @@ class UpsampleNetwork(nn.Module):
         super().__init__()
         total_scale = np.cumproduct(upsample_scales)[-1]
         self.indent = pad * total_scale
-        self.resnet = MelResNet(res_blocks, feat_dims, compute_dims, res_out_dims)
-        self.resnet_stretch = Stretch2d(total_scale, 1)
+        # self.resnet = MelResNet(res_blocks, feat_dims, compute_dims, res_out_dims)
+        # self.resnet_stretch = Stretch2d(total_scale, 1)
         self.up_layers = nn.ModuleList()
         for scale in upsample_scales:
             k_size = (1, scale * 2 + 1)
@@ -89,15 +89,15 @@ class UpsampleNetwork(nn.Module):
 
     def forward(self, m):
         # compute aux mel representation
-        aux = self.resnet(m).unsqueeze(1)
-        aux = self.resnet_stretch(aux)
-        aux = aux.squeeze(1)
+        # aux = self.resnet(m).unsqueeze(1)
+        # aux = self.resnet_stretch(aux)
+        # aux = aux.squeeze(1)
         m = m.unsqueeze(1)
         # upsample mel spec.
         for f in self.up_layers:
             m = f(m)
         m = m.squeeze(1)[:, :, self.indent : -self.indent]
-        return m.transpose(1, 2), aux.transpose(1, 2)
+        return m.transpose(1, 2)
 
 
 class Model(nn.Module):
@@ -120,11 +120,17 @@ class Model(nn.Module):
         self.upsample = UpsampleNetwork(
             feat_dims, upsample_factors, compute_dims, res_blocks, res_out_dims, pad
         )
-        self.I = nn.Linear(feat_dims + self.aux_dims + 1, rnn_dims)
+        # self.I = nn.Linear(feat_dims + self.aux_dims + 1, rnn_dims)
+        # self.rnn1 = nn.GRU(rnn_dims, rnn_dims, batch_first=True)
+        # self.rnn2 = nn.GRU(rnn_dims + self.aux_dims, rnn_dims, batch_first=True)
+        # self.fc1 = nn.Linear(rnn_dims + self.aux_dims, fc_dims)
+        # self.fc2 = nn.Linear(fc_dims + self.aux_dims, fc_dims)
+        # self.fc3 = nn.Linear(fc_dims, self.n_classes)
+        self.I = nn.Linear(feat_dims + 1, rnn_dims)
         self.rnn1 = nn.GRU(rnn_dims, rnn_dims, batch_first=True)
-        self.rnn2 = nn.GRU(rnn_dims + self.aux_dims, rnn_dims, batch_first=True)
-        self.fc1 = nn.Linear(rnn_dims + self.aux_dims, fc_dims)
-        self.fc2 = nn.Linear(fc_dims + self.aux_dims, fc_dims)
+        self.rnn2 = nn.GRU(rnn_dims, rnn_dims, batch_first=True)
+        self.fc1 = nn.Linear(rnn_dims, fc_dims)
+        self.fc2 = nn.Linear(fc_dims, fc_dims)
         self.fc3 = nn.Linear(fc_dims, self.n_classes)
         num_params(self)
 
@@ -136,17 +142,17 @@ class Model(nn.Module):
         h2 = x.data.new(1, bsize, self.rnn_dims).zero_()
 
         # compute input representations from mel-spec.
-        mels, aux = self.upsample(mels)
+        mels = self.upsample(mels)
 
         # split aux features into different temporal segments.
-        aux_idx = [self.aux_dims * i for i in range(5)]
-        a1 = aux[:, :, aux_idx[0] : aux_idx[1]]
-        a2 = aux[:, :, aux_idx[1] : aux_idx[2]]
-        a3 = aux[:, :, aux_idx[2] : aux_idx[3]]
-        a4 = aux[:, :, aux_idx[3] : aux_idx[4]]
+        # aux_idx = [self.aux_dims * i for i in range(5)]
+        # a1 = aux[:, :, aux_idx[0] : aux_idx[1]]
+        # a2 = aux[:, :, aux_idx[1] : aux_idx[2]]
+        # a3 = aux[:, :, aux_idx[2] : aux_idx[3]]
+        # a4 = aux[:, :, aux_idx[3] : aux_idx[4]]
 
         # concat[mel, aux1] -> FC -> GRU 
-        x = torch.cat([x.unsqueeze(-1), mels, a1], dim=2)
+        x = torch.cat([x.unsqueeze(-1), mels], dim=2)
         x = self.I(x)
         res = x
         x, _ = self.rnn1(x, h1)
@@ -154,16 +160,16 @@ class Model(nn.Module):
         # concat[x, aux2] -> GRU 
         x = x + res
         res = x
-        x = torch.cat([x, a2], dim=2)
+        # x = torch.cat([x, a2], dim=2)
         x, _ = self.rnn2(x, h2)
 
         # concat[x, aux3] -> FC
         x = x + res
-        x = torch.cat([x, a3], dim=2)
+        # x = torch.cat([x, a3], dim=2)
         x = F.relu(self.fc1(x))
 
         # concat[x, aux4] -> FC
-        x = torch.cat([x, a4], dim=2)
+        # x = torch.cat([x, a4], dim=2)
         x = F.relu(self.fc2(x))
 
         # x -> FC_OUT
@@ -185,37 +191,38 @@ class Model(nn.Module):
             h2 = torch.zeros(1, self.rnn_dims).cuda()
 
             mels = torch.FloatTensor(mels).cuda().unsqueeze(0)
-            mels, aux = self.upsample(mels)
+            # mels, aux = self.upsample(mels)
+            mels = self.upsample(mels)
 
-            aux_idx = [self.aux_dims * i for i in range(5)]
-            a1 = aux[:, :, aux_idx[0] : aux_idx[1]]
-            a2 = aux[:, :, aux_idx[1] : aux_idx[2]]
-            a3 = aux[:, :, aux_idx[2] : aux_idx[3]]
-            a4 = aux[:, :, aux_idx[3] : aux_idx[4]]
+            # aux_idx = [self.aux_dims * i for i in range(5)]
+            # a1 = aux[:, :, aux_idx[0] : aux_idx[1]]
+            # a2 = aux[:, :, aux_idx[1] : aux_idx[2]]
+            # a3 = aux[:, :, aux_idx[2] : aux_idx[3]]
+            # a4 = aux[:, :, aux_idx[3] : aux_idx[4]]
 
             seq_len = mels.size(1)
 
             for i in range(seq_len):
 
                 m_t = mels[:, i, :]
-                a1_t = a1[:, i, :]
-                a2_t = a2[:, i, :]
-                a3_t = a3[:, i, :]
-                a4_t = a4[:, i, :]
+                # a1_t = a1[:, i, :]
+                # a2_t = a2[:, i, :]
+                # a3_t = a3[:, i, :]
+                # a4_t = a4[:, i, :]
 
-                x = torch.cat([x, m_t, a1_t], dim=1)
+                x = torch.cat([x, m_t], dim=1)
                 x = self.I(x)
                 h1 = rnn1(x, h1)
 
                 x = x + h1
-                inp = torch.cat([x, a2_t], dim=1)
-                h2 = rnn2(inp, h2)
+                # inp = torch.cat([x, a2_t], dim=1)
+                h2 = rnn2(x, h2)
 
                 x = x + h2
-                x = torch.cat([x, a3_t], dim=1)
+                # x = torch.cat([x, a3_t], dim=1)
                 x = F.relu(self.fc1(x))
 
-                x = torch.cat([x, a4_t], dim=1)
+                # x = torch.cat([x, a4_t], dim=1)
                 x = F.relu(self.fc2(x))
                 x = self.fc3(x)
                 posterior = F.softmax(x, dim=1).view(-1)

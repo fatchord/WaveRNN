@@ -24,6 +24,13 @@ class AnnealLR(torch.optim.lr_scheduler._LRScheduler):
             for base_lr in self.base_lrs
         ]
 
+
+def copy_config_file(config_file, path):
+    config_name = os.path.basename(config_file)
+    out_path = os.path.join(path, config_name)
+    shutil.copyfile(config_file, out_path)
+
+
 def load_config(config_path):
     config = AttrDict()
     with open(config_path, "r") as f:
