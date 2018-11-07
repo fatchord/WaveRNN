@@ -47,7 +47,7 @@ def collate(batch):
         x[0][:, mel_offsets[i] : mel_offsets[i] + mel_win] for i, x in enumerate(batch)
     ]
     coarse = [
-        x[1][sig_offsets[i] : sig_offsets[i] + seq_len + 1] for i, x in enumerate(batch)
+        x[1][sig_offsets[i] - 1 : sig_offsets[i] + seq_len] for i, x in enumerate(batch)
     ]
     mels = np.stack(mels).astype(np.float32)
     coarse = np.stack(coarse).astype(np.int64)
@@ -89,9 +89,6 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
         for i, (x, m, y) in enumerate(train_loader):
             if use_cuda:
                 x, m, y = x.cuda(), m.cuda(), y.cuda()
-            print(x.shape)
-            print(m.shape)
-            print()
             y_hat = model(x, m)
             y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
             y = y.unsqueeze(-1)
