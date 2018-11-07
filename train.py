@@ -46,7 +46,6 @@ def collate(batch):
     mels = [
         x[0][:, mel_offsets[i] : mel_offsets[i] + mel_win] for i, x in enumerate(batch)
     ]
-
     coarse = [
         x[1][sig_offsets[i] : sig_offsets[i] + seq_len + 1] for i, x in enumerate(batch)
     ]
@@ -150,7 +149,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--restore_path", type=str, default=0, help="path for a model to fine-tune."
     )
-
     parser.add_argument(
         "--data_path", type=str, default='', help="data path to overwrite config.json."
     )
