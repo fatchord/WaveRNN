@@ -79,13 +79,11 @@ class UpsampleNetwork(nn.Module):
         # self.resnet_stretch = Stretch2d(total_scale, 1)
         self.up_layers = nn.ModuleList()
         for scale in upsample_scales:
-            k_size = (1, scale * 2 + 1)
-            padding = (0, scale)
-            stretch = Stretch2d(scale, 1)
-            conv = nn.Conv2d(1, 1, kernel_size=k_size, padding=padding, bias=False)
-            conv.weight.data.fill_(1. / k_size[1])
-            self.up_layers.append(stretch)
-            self.up_layers.append(conv)
+            convt = nn.ConvTranspose2d(1, 1, (3, 2 * scale + 1), padding=(1, scale // 2), stride=(1, scale))
+            convt = nn.utils.weight_norm(convt)
+            nn.init.kaiming_normal_(convt.weight)
+            self.up_layers.append(convt)
+            self.up_layers.append(nn.LeakyReLU(0.4))
 
     def forward(self, m):
         # compute aux mel representation
