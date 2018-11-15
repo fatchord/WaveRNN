@@ -226,8 +226,8 @@ if __name__ == "__main__":
 
     # create the model
     model = Model(
-        rnn_dims=512,
-        fc_dims=512,
+        rnn_dims=1024,
+        fc_dims=1024,
         bits=bits,
         pad=2,
         upsample_factors=(5, 5, 11),
