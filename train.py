@@ -13,7 +13,7 @@ try:
     from TTS.utils.audio import AudioProcessor
 except:
     from utils.audio import AudioProcessor    
-from utils.generic_utils import load_config, save_checkpoint, AnnealLR
+from utils.generic_utils import load_config, save_checkpoint, AnnealLR, count_parameters
 from tqdm import tqdm
 from models.wavernn import Model
 
@@ -112,9 +112,50 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
             if step % CONFIG.checkpoint_step == 0:
                 save_checkpoint(model, optimizer, avg_loss, MODEL_PATH, step, e)
                 print(" > modelsaved")
+        # visual
+        m_scaled = model.module.upsample(m)
+        plot_spec(m[0], VIS_PATH + "/mel_{}.png".format(step))
+        plot_spec(m_scaled[0], VIS_PATH + "/mel_scaled_{}.png".format(step))
         # validation loop
-        running_val_loss = 0
+        evaluate(model, criterion, batch_size)
+         # synthesis a single clip
         generate(step)
+
+        
+def evaluate(model, criterion, batch_size):
+    global CONFIG
+    # loss_threshold = 4.0
+    # create train loader
+    dataset = MyDataset(test_ids, DATA_PATH)
+    val_loader = DataLoader(
+        dataset,
+        collate_fn=collate,
+        batch_size=batch_size,
+        num_workers=CONFIG.num_workers,
+        shuffle=True,
+        pin_memory=True,
+    )
+
+    running_val_loss = 0.
+    iters = len(val_loader)
+    # train loop
+    print(" > Validation")
+    model.eval()
+    val_step = 0
+    with torch.no_grad():
+        for i, (x, m, y) in enumerate(val_loader):
+            if use_cuda:
+                x, m, y = x.cuda(), m.cuda(), y.cuda()
+            y_hat = model(x, m)
+            y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
+            y = y.unsqueeze(-1)
+            loss = criterion(y_hat, y)
+            running_val_loss += loss.item()
+            avg_val_loss = running_val_loss / (i + 1)
+            val_step += 1
+            if val_step % CONFIG.print_step == 0:
+                print(" | > Batch: {}/{} -- Loss: {:.3f}".format(iters, val_step, avg_val_loss))
+        print(" | > Validation Loss: {}".format(avg_val_loss))
 
 
 def generate(step, samples=1, mulaw=False):
@@ -167,19 +208,21 @@ if __name__ == "__main__":
     MODEL_PATH = f"{OUT_PATH}/model_checkpoints/"
     DATA_PATH = f"{OUT_PATH}/data/"
     GEN_PATH = f"{OUT_PATH}/model_outputs/"
+    VIS_PATH = f"{OUT_PATH}/visual/"
     shutil.copyfile(args.config_path, os.path.join(OUT_PATH, "config.json"))
 
     # create paths
     os.makedirs(MODEL_PATH, exist_ok=True)
     os.makedirs(GEN_PATH, exist_ok=True)
+    os.makedirs(VIS_PATH, exist_ok=True)
 
     # read meta data
     with open(f"{DATA_PATH}dataset_ids.pkl", "rb") as f:
         dataset_ids = pickle.load(f)
 
-    test_ids = dataset_ids[-50:]
+    test_ids = dataset_ids[-500:]
     test_id = test_ids[1]
-    dataset_ids = dataset_ids[:-50]
+    dataset_ids = dataset_ids[:-500]
 
     # create the model
     model = Model(
@@ -193,6 +236,8 @@ if __name__ == "__main__":
         res_out_dims=128,
         res_blocks=10,
     )
+    num_parameters = count_parameters(model)
+    print(" > Number of model parameters: {}".format(num_parameters))
     if use_cuda:
         model = nn.DataParallel(model).cuda()
     optimizer = optim.Adam(model.parameters())

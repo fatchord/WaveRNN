@@ -1,5 +1,5 @@
 {
-    "run_name": "wavernn_new_audio",
+    "run_name": "wavernn_tts",
 
     "audio":{
         "audio_processor": "audio",     // to use dictate different audio processors, if available.
@@ -30,6 +30,6 @@
     "print_step": 100,
     "num_workers": 8,
 
-    "data_path": "/snakepit/shared/data/keithito/LJSpeech-1.1/wavs/",
+    // "data_path": "/snakepit/shared/data/keithito/LJSpeech-1.1/wavs/",
     "out_path": "tmp/"
 }

@@ -42,6 +42,11 @@ def load_config(config_path):
     return config
 
 
+def count_parameters(model):
+    r"""Count number of trainable parameters in a network"""
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
+
 def save_checkpoint(model, optimizer, model_loss, out_path,
                     current_step, epoch):
     checkpoint_path = 'checkpoint_{}.pth.tar'.format(current_step)

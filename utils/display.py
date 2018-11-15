@@ -1,3 +1,4 @@
+import torch
 import matplotlib.pyplot as plt
 import time, sys, math
 import numpy as np
@@ -32,9 +33,15 @@ def plot(array) :
     ax.tick_params(axis='y', colors='grey', labelsize=23)
     plt.plot(array)
 
-def plot_spec(M) :
+def plot_spec(M, path=None) :
+    if torch.is_tensor(M):
+        M = M.data.cpu().numpy().squeeze()
     M = np.flip(M, axis=0)
     plt.figure(figsize=(18,4))
     plt.imshow(M, interpolation='nearest', aspect='auto')
-    plt.show()
+    plt.colorbar()
+    if path:
+        plt.savefig(path)
+    else:
+        plt.show()
 

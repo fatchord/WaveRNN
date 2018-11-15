@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
+import numpy as np
 import torch.nn.functional as F
-from utils.display import *
+import time
 
 
 class ResBlock(nn.Module):
@@ -79,7 +80,7 @@ class UpsampleNetwork(nn.Module):
         # self.resnet_stretch = Stretch2d(total_scale, 1)
         self.up_layers = nn.ModuleList()
         for scale in upsample_scales:
-            convt = nn.ConvTranspose2d(1, 1, (3, 2 * scale + 1), padding=(1, scale // 2), stride=(1, scale))
+            convt = nn.ConvTranspose2d(1, 1, (3, 2 * scale + 1), padding=(1, scale // 2 + 1), stride=(1, scale))
             convt = nn.utils.weight_norm(convt)
             nn.init.kaiming_normal_(convt.weight)
             self.up_layers.append(convt)
@@ -95,6 +96,7 @@ class UpsampleNetwork(nn.Module):
         for f in self.up_layers:
             m = f(m)
         m = m.squeeze(1)[:, :, self.indent : -self.indent]
+        # m = m.squeeze(1)
         return m.transpose(1, 2)
 
 
@@ -130,7 +132,6 @@ class Model(nn.Module):
         self.fc1 = nn.Linear(rnn_dims, fc_dims)
         self.fc2 = nn.Linear(fc_dims, fc_dims)
         self.fc3 = nn.Linear(fc_dims, self.n_classes)
-        num_params(self)
 
     def forward(self, x, mels):
         bsize = mels.size(0)
@@ -141,6 +142,7 @@ class Model(nn.Module):
 
         # compute input representations from mel-spec.
         mels = self.upsample(mels)
+        assert mels.shape[1] == x.shape[1],'{} vs {}'.format(mels.shape[1], x.shape[1])
 
         # split aux features into different temporal segments.
         # aux_idx = [self.aux_dims * i for i in range(5)]
