@@ -77,7 +77,7 @@ class UpsampleNetwork(nn.Module):
         total_scale = np.cumproduct(upsample_scales)[-1]
         self.indent = pad * total_scale
         # self.resnet = MelResNet(res_blocks, feat_dims, compute_dims, res_out_dims)
-        # self.resnet_stretch = Stretch2d(total_scale, 1)
+        self.stretch = Stretch2d(total_scale, 1)
         self.up_layers = nn.ModuleList()
         for scale in upsample_scales:
             convt = nn.ConvTranspose2d(1, 1, (3, 2 * scale + 1), padding=(1, scale // 2 + 1), stride=(1, scale))
@@ -89,12 +89,13 @@ class UpsampleNetwork(nn.Module):
     def forward(self, m):
         # compute aux mel representation
         # aux = self.resnet(m).unsqueeze(1)
-        # aux = self.resnet_stretch(aux)
         # aux = aux.squeeze(1)
         m = m.unsqueeze(1)
+        aux = self.stretch(m)
         # upsample mel spec.
         for f in self.up_layers:
             m = f(m)
+        m = aux + m
         m = m.squeeze(1)[:, :, self.indent : -self.indent]
         # m = m.squeeze(1)
         return m.transpose(1, 2)

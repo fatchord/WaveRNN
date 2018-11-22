@@ -115,7 +115,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
         # visual
         m_scaled = model.module.upsample(m)
         plot_spec(m[0], VIS_PATH + "/mel_{}.png".format(step))
-        plot_spec(m_scaled[0], VIS_PATH + "/mel_scaled_{}.png".format(step))
+        plot_spec(m_scaled[0].transpose(0, 1), VIS_PATH + "/mel_scaled_{}.png".format(step))
         # validation loop
         evaluate(model, criterion, batch_size)
          # synthesis a single clip
@@ -200,7 +200,8 @@ if __name__ == "__main__":
     ap = AudioProcessor(**CONFIG.audio)
 
     bits = CONFIG.audio['bits']
-    seq_len = ap.hop_length * 5
+    seq_len = ap.hop_length * 8
+    # seq_len = 15950
     run_name = CONFIG.run_name
 
     # set paths
