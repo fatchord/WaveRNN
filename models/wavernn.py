@@ -79,23 +79,24 @@ class UpsampleNetwork(nn.Module):
         # self.resnet = MelResNet(res_blocks, feat_dims, compute_dims, res_out_dims)
         self.stretch = Stretch2d(total_scale, 1)
         self.up_layers = nn.ModuleList()
-        for scale in upsample_scales:
-            convt = nn.ConvTranspose2d(1, 1, (3, 2 * scale + 1), padding=(1, scale // 2 + 1), stride=(1, scale))
-            convt = nn.utils.weight_norm(convt)
-            nn.init.kaiming_normal_(convt.weight)
-            self.up_layers.append(convt)
-            self.up_layers.append(nn.LeakyReLU(0.4))
+        # for scale in upsample_scales:
+        #     convt = nn.ConvTranspose2d(1, 1, (3, 2 * scale + 1), padding=(1, scale // 2 + 1), stride=(1, scale))
+        #     convt = nn.utils.weight_norm(convt)
+        #     nn.init.kaiming_normal_(convt.weight)
+        #     self.up_layers.append(convt)
+        #     self.up_layers.append(nn.LeakyReLU(0.4))
+        self.up_layers.append(nn.Upsample(scale_factor=total_scale, mode='linear', align_corners=True))
 
     def forward(self, m):
         # compute aux mel representation
         # aux = self.resnet(m).unsqueeze(1)
         # aux = aux.squeeze(1)
-        m = m.unsqueeze(1)
-        aux = self.stretch(m)
+        # m = m.unsqueeze(1)
+        # aux = self.stretch(m)
         # upsample mel spec.
         for f in self.up_layers:
             m = f(m)
-        m = aux + m
+        # m = aux + m
         m = m.squeeze(1)[:, :, self.indent : -self.indent]
         # m = m.squeeze(1)
         return m.transpose(1, 2)
@@ -226,9 +227,17 @@ class Model(nn.Module):
                 # x = torch.cat([x, a4_t], dim=1)
                 x = F.relu(self.fc2(x))
                 x = self.fc3(x)
-                posterior = F.softmax(x, dim=1).view(-1)
-                distrib = torch.distributions.Categorical(posterior)
-                sample = 2 * distrib.sample().float() / (self.n_classes - 1.) - 1.
+                if deterministic:
+                    sample = torch.argmax(F.softmax(x, dim=1).view(-1), dim=-1)
+                    # print(sample)
+                    # probs.append(F.softmax(x, dim=1).view(-1))
+                    sample = 2 * sample.float() / (self.n_classes - 1.) - 1.
+                else:
+                    posterior = F.softmax(x, dim=1).view(-1)
+                    distrib = torch.distributions.Categorical(posterior)
+                    # probs.append(posterior)
+                    # print(distrib.sample().float())
+                    sample = 2 * distrib.sample().float() / (self.n_classes - 1.) - 1.
                 output.append(sample)
                 x = torch.FloatTensor([[sample]]).cuda()
                 if i % 100 == 0:
@@ -236,7 +245,7 @@ class Model(nn.Module):
                     if verbose:
                         print("{}/{} -- Speed: {} samples/sec".format(i + 1, seq_len, speed))
         output = torch.stack(output).cpu().numpy()
-        return output
+        return output, probs 
 
     def get_gru_cell(self, gru):
         gru_cell = nn.GRUCell(gru.input_size, gru.hidden_size)
