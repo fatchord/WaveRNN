@@ -1,3 +1,6 @@
+import sys
+sys.path.insert(0, "/home/erogol/projects/")
+from TTS.utils.audio import AudioProcessor
 import librosa
 import shutil
 import argparse
@@ -9,10 +12,6 @@ from torch import nn
 from torch import optim
 from torch.utils.data import Dataset, DataLoader
 from utils.display import *
-try:
-    from TTS.utils.audio import AudioProcessor
-except:
-    from utils.audio import AudioProcessor    
 from utils.generic_utils import load_config, save_checkpoint, AnnealLR, count_parameters
 from tqdm import tqdm
 from models.wavernn import Model
@@ -38,7 +37,7 @@ class MyDataset(Dataset):
 
 
 def collate(batch):
-    pad = 2
+    pad = 2  # padding for RESNET filters in size  5
     mel_win = seq_len // ap.hop_length + 2 * pad
     max_offsets = [x[0].shape[-1] - (mel_win + 2 * pad) for x in batch]
     mel_offsets = [np.random.randint(0, offset) for offset in max_offsets]
@@ -47,7 +46,7 @@ def collate(batch):
         x[0][:, mel_offsets[i] : mel_offsets[i] + mel_win] for i, x in enumerate(batch)
     ]
     coarse = [
-        x[1][sig_offsets[i] - 1 : sig_offsets[i] + seq_len] for i, x in enumerate(batch)
+        x[1][sig_offsets[i] : sig_offsets[i] + seq_len + 1] for i, x in enumerate(batch)
     ]
     mels = np.stack(mels).astype(np.float32)
     coarse = np.stack(coarse).astype(np.int64)
@@ -119,7 +118,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
         # validation loop
         evaluate(model, criterion, batch_size)
          # synthesis a single clip
-        generate(step)
+        # generate(step)
 
         
 def evaluate(model, criterion, batch_size):
@@ -223,6 +222,7 @@ if __name__ == "__main__":
 
     test_ids = dataset_ids[-500:]
     test_id = test_ids[1]
+    print(test_id)
     dataset_ids = dataset_ids[:-500]
 
     # create the model
@@ -247,8 +247,27 @@ if __name__ == "__main__":
     # restore any checkpoint
     if args.restore_path:
         checkpoint = torch.load(args.restore_path)
-        model.load_state_dict(checkpoint["model"])
-        optimizer.load_state_dict(checkpoint["optimizer"])
+        try:
+            model.load_state_dict(checkpoint["model"])
+            optimizer.load_state_dict(checkpoint["optimizer"])
+        except:
+            model_dict = model.state_dict()
+            # Partial initialization: if there is a mismatch with new and old layer, it is skipped.
+            # 1. filter out unnecessary keys
+            pretrained_dict = {
+                k: v
+                for k, v in checkpoint['model'].items() if k in model_dict 
+            }
+            # 2. filter out different size layers
+            pretrained_dict = {
+                k: v
+                for k, v in pretrained_dict.items() if v.numel() == model_dict[k].numel()
+            }
+            # 3. overwrite entries in the existing state dict
+            model_dict.update(pretrained_dict)
+            # 4. load the new state dict
+            model.load_state_dict(model_dict)
+            print(" | > {} / {} layers are initialized".format(len(pretrained_dict), len(model_dict)))
         step = checkpoint["step"]
 
     # define train functions

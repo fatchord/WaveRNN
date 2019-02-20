@@ -181,8 +181,9 @@ class Model(nn.Module):
         mels, aux = self.upsample(mels)
         return mels, aux
 
-    def generate(self, mels, verbose=False):
+    def generate(self, mels, verbose=False, deterministic=True):
         output = []
+        probs = []
         rnn1 = self.get_gru_cell(self.rnn1)
         rnn2 = self.get_gru_cell(self.rnn2)
 
