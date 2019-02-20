@@ -26,7 +26,7 @@
     },
 
     "epochs": 1000,
-    "lr": 0.0001,
+    "lr": 0.0005,
     "warmup_steps": 3000,
     "batch_size": 32,
     "checkpoint_step": 5000,
