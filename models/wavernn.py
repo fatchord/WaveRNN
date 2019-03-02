@@ -11,16 +11,13 @@ class UpsampleNetwork(nn.Module):
     conv layers to fine-tune the upsampled representation.
     """
     def __init__(
-        self, feat_dims, upsample_scales, compute_dims, res_blocks, res_out_dims, pad
+        self, feat_dims, upsample_scale, compute_dims, res_blocks, res_out_dims
     ):
         super().__init__()
-        total_scale = np.cumproduct(upsample_scales)[-1]
-        self.indent = pad * total_scale
-        self.up_layer = nn.Upsample(scale_factor=total_scale, mode='linear', align_corners=True)
+        self.up_layer = nn.Upsample(scale_factor=upsample_scale, mode='linear', align_corners=True)
 
     def forward(self, m):
         m = self.up_layer(m)
-        m = m.squeeze(1)[:, :, self.indent : -self.indent]
         return m.transpose(1, 2)
 
 
@@ -30,8 +27,7 @@ class Model(nn.Module):
         rnn_dims,
         fc_dims,
         bits,
-        pad,
-        upsample_factors,
+        upsample_factor,
         feat_dims,
         compute_dims,
         res_out_dims,
@@ -42,7 +38,7 @@ class Model(nn.Module):
         self.rnn_dims = rnn_dims
         self.aux_dims = res_out_dims // 4
         self.upsample = UpsampleNetwork(
-            feat_dims, upsample_factors, compute_dims, res_blocks, res_out_dims, pad
+            feat_dims, upsample_factor, compute_dims, res_blocks, res_out_dims
         )
         self.I = nn.Linear(feat_dims + 1, rnn_dims)
         self.rnn1 = nn.GRU(rnn_dims, rnn_dims, batch_first=True)
@@ -87,19 +83,17 @@ class Model(nn.Module):
         mels, aux = self.upsample(mels)
         return mels, aux
 
-    def generate(self, mels, verbose=False, deterministic=True):
+    def generate(self, mels, verbose=False, deterministic=True, use_cuda=False):
         output = []
-        probs = []
         rnn1 = self.get_gru_cell(self.rnn1)
         rnn2 = self.get_gru_cell(self.rnn2)
 
         with torch.no_grad():
             start = time.time()
-            x = torch.zeros(1, 1).cuda()
-            h1 = torch.zeros(1, self.rnn_dims).cuda()
-            h2 = torch.zeros(1, self.rnn_dims).cuda()
+            x = mels.data.new(1, 1).zero_()
+            h1 = mels.data.new(1, self.rnn_dims).zero_()
+            h2 = mels.data.new(1, self.rnn_dims).zero_()
 
-            mels = torch.FloatTensor(mels).cuda().unsqueeze(0)
             mels = self.upsample(mels)
 
             seq_len = mels.size(1)
@@ -127,9 +121,10 @@ class Model(nn.Module):
                     posterior = F.softmax(x, dim=1).view(-1)
                     distrib = torch.distributions.Categorical(posterior)
                     sample = 2 * distrib.sample().float() / (self.n_classes - 1.) - 1.
+
                 output.append(sample)
-                x = torch.FloatTensor([[sample]]).cuda()
-                if i % 100 == 0:
+                x = torch.FloatTensor([[sample]]).to(mels.device)
+                if i % 1000 == 0:
                     speed = int((i + 1) / (time.time() - start))
                     if verbose:
                         print("{}/{} -- Speed: {} samples/sec".format(i + 1, seq_len, speed))

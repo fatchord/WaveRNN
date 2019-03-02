@@ -25,13 +25,14 @@
         "do_trim_silence": true  // enable trimming of slience of audio as you load it. LJspeech (false), TWEB (false), Nancy (true)
     },
 
-    "epochs": 1000,
-    "lr": 0.0005,
+    "epochs": 2000,
+    "lr": 0.0001,
     "warmup_steps": 3000,
     "batch_size": 32,
     "checkpoint_step": 5000,
     "print_step": 20,
     "num_workers": 8,
+    "mel_len": 8,
 
     // "data_path": "/snakepit/shared/data/keithito/LJSpeech-1.1/wavs/",
     "out_path": "tmp/"

@@ -37,44 +37,48 @@ class MyDataset(Dataset):
 
 
 def collate(batch):
-    pad = 2  # padding for RESNET filters in size  5
-    mel_win = seq_len // ap.hop_length + 2 * pad
-    max_offsets = [x[0].shape[-1] - (mel_win + 2 * pad) for x in batch]
-    mel_offsets = [np.random.randint(0, offset) for offset in max_offsets]
-    sig_offsets = [(offset + pad) * ap.hop_length for offset in mel_offsets]
-    mels = [
-        x[0][:, mel_offsets[i] : mel_offsets[i] + mel_win] for i, x in enumerate(batch)
-    ]
-    coarse = [
-        x[1][sig_offsets[i] : sig_offsets[i] + seq_len + 1] for i, x in enumerate(batch)
-    ]
-    mels = np.stack(mels).astype(np.float32)
-    coarse = np.stack(coarse).astype(np.int64)
-    mels = torch.FloatTensor(mels)
-    coarse = torch.LongTensor(coarse)
-    x_input = 2 * coarse[:, :seq_len].float() / (2 ** bits - 1.) - 1.
+    mel_win = CONFIG.mel_len 
+    seq_len = ap.hop_length * mel_win
+
+    mels = []
+    coarse = []
+    for x in batch:
+        max_offset = x[0].shape[-1] - (mel_win + 2)
+        mel_offset = np.random.randint(0, max_offset)
+        sig_offset = mel_offset * ap.hop_length
+        assert mel_offset + mel_win < x[0].shape[1], "{} vs {}".format(mel_offset + mel_win, x[0].shape)
+        mels.append(x[0][:, mel_offset:(mel_offset + mel_win)])
+        
+        assert sig_offset + seq_len + 1 < x[1].shape[0], "{} vs {} {} {}".format(sig_offset + seq_len + 1, x[1].shape, sig_offset, seq_len)
+        coarse.append(x[1][sig_offset:(sig_offset + seq_len + 1)])
+
+    mels = torch.FloatTensor(np.stack(mels).astype(np.float32))
+    coarse = torch.LongTensor(np.stack(coarse).astype(np.int64))
+
+    x_input = 2 * coarse[:, :seq_len].float() / (2**ap.bits - 1.) - 1.
     y_coarse = coarse[:, 1:]
+
     return x_input, mels, y_coarse
 
 
-def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, step, lr):
+def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
     global CONFIG
-    # loss_threshold = 4.0
     # create train loader
     dataset = MyDataset(dataset_ids, DATA_PATH)
     train_loader = DataLoader(
         dataset,
         collate_fn=collate,
         batch_size=batch_size,
-        num_workers=CONFIG.num_workers,
+        num_workers=0,
         shuffle=True,
         pin_memory=True,
     )
 
     for p in optimizer.param_groups:
         p["initial_lr"] = lr
+        p["lr"] = lr
 
-    scheduler = AnnealLR(optimizer, warmup_steps=CONFIG.warmup_steps, last_epoch=step)
+    # scheduler = AnnealLR(optimizer, warmup_steps=CONFIG.warmup_steps, last_epoch=step)
     for e in range(epochs):
         running_loss = 0.
         # TODO: write validation iteration
@@ -99,7 +103,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, seq_len, ste
             speed = (i + 1) / (time.time() - start)
             avg_loss = running_loss / (i + 1)
             step += 1
-            scheduler.step()
+            # scheduler.step()
             cur_lr = optimizer.param_groups[0]["lr"]
             if step % CONFIG.print_step == 0:
                 print(
@@ -162,8 +166,6 @@ def generate(step, samples=1, mulaw=False):
     k = step // 1000
     test_mels = [np.load(f"{DATA_PATH}mel/{test_id}.npy")]
     ground_truth = [np.load(f"{DATA_PATH}quant/{test_id}.npy")]
-    # test_mels = [np.load(f"{DATA_PATH}mel/{id}.npy") for id in test_ids[:samples]]
-    # ground_truth = [np.load(f"{DATA_PATH}quant/{id}.npy") for id in test_ids[:samples]]
     for i, (gt, mel) in enumerate(zip(ground_truth, test_mels)):
         print("\nGenerating: %i/%i" % (i + 1, samples))
         gt = 2 * gt.astype(np.float32) / (2 ** bits - 1.) - 1.
@@ -199,8 +201,6 @@ if __name__ == "__main__":
     ap = AudioProcessor(**CONFIG.audio)
 
     bits = CONFIG.audio['bits']
-    seq_len = ap.hop_length * 8
-    # seq_len = 15950
     run_name = CONFIG.run_name
 
     # set paths
@@ -230,8 +230,7 @@ if __name__ == "__main__":
         rnn_dims=512,
         fc_dims=512,
         bits=bits,
-        pad=2,
-        upsample_factors=(5, 5, 11),
+        upsample_factor=ap.hop_length,
         feat_dims=80,
         compute_dims=128,
         res_out_dims=128,
@@ -282,7 +281,6 @@ if __name__ == "__main__":
         epochs=1000,
         batch_size=CONFIG.batch_size,
         classes=2 ** bits,
-        seq_len=seq_len,
         step=step,
         lr=CONFIG.lr,
     )
