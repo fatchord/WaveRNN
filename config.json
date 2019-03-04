@@ -1,5 +1,5 @@
 {
-    "run_name": "wavernn_tts",
+    "model_name": "wavernn_tts_4152",
 
     "audio":{
         "audio_processor": "audio",     // to use dictate different audio processors, if available.
@@ -20,9 +20,14 @@
         "symmetric_norm": false, // move normalization to range [-1, 1]
         "max_norm": 1,          // scale normalization to range [-max_norm, max_norm] or [0, max_norm]
         "clip_norm": true,      // clip normalized values into the range.
-        "mel_fmin": null,         // minimum freq level for mel-spec. ~50 for male and ~95 for female voices. Tune for dataset!!
-        "mel_fmax": null,        // maximum freq level for mel-spec. Tune for dataset!!
+        "mel_fmin": 0.0,         // minimum freq level for mel-spec. ~50 for male and ~95 for female voices. Tune for dataset!!
+        "mel_fmax": 8000.0,        // maximum freq level for mel-spec. Tune for dataset!!
         "do_trim_silence": true  // enable trimming of slience of audio as you load it. LJspeech (false), TWEB (false), Nancy (true)
+    },
+
+    "distributed":{
+        "backend": "nccl",
+        "url": "tcp:\/\/localhost:54321"
     },
 
     "epochs": 2000,
@@ -30,11 +35,11 @@
     "warmup_steps": 3000,
     "batch_size": 32,
     "checkpoint_step": 5000,
-    "print_step": 100,
+    "print_step": 25,
     "num_workers": 8,
     "mel_len": 8,
     "pad": 2,
 
-    // "data_path": "/snakepit/shared/data/keithito/LJSpeech-1.1/wavs/",
-    "out_path": "tmp/"
+    "data_path": "/home/erogol/Data/LJSpeech-1.1/wavernn_4152/",
+    "output_path": "../keep/"
 }

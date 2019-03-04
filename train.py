@@ -1,95 +1,83 @@
-import sys
-sys.path.insert(0, "/home/erogol/projects/")
-from TTS.utils.audio import AudioProcessor
-import librosa
-import shutil
 import argparse
+import math
+import os
+import pickle
+import shutil
+import traceback
+import sys
+
+sys.path.insert(0, "/home/erogol/projects/")
+
+import librosa
 import matplotlib.pyplot as plt
-import math, pickle, os
 import numpy as np
 import torch
-from torch import nn
-from torch import optim
-from torch.utils.data import Dataset, DataLoader
-from utils.display import *
-from utils.generic_utils import load_config, save_checkpoint, AnnealLR, count_parameters
-from tqdm import tqdm
+from torch import nn, optim
+from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
+
+from distribute import *
+from dataset import MyDataset
 from models.wavernn import Model
+from utils.audio import AudioProcessor
+from utils.display import *
+from utils.generic_utils import (
+    AnnealLR,
+    count_parameters,
+    load_config,
+    save_checkpoint,
+    remove_experiment_folder,
+)
 
+torch.backends.cudnn.enabled = True
+torch.backends.cudnn.benchmark = False
+torch.manual_seed(54321)
 use_cuda = torch.cuda.is_available()
-if use_cuda:
-    torch.backends.cudnn.benchmark = True
+num_gpus = torch.cuda.device_count()
+print(" > Using CUDA: ", use_cuda)
+print(" > Number of GPUs: ", num_gpus)
 
-# define data classes
-class MyDataset(Dataset):
-    def __init__(self, ids, path, eval=False):
-        self.path = path
-        self.metadata = ids
-        self.eval = eval
-        
-    def __getitem__(self, index):
-        file = self.metadata[index]
-        m = np.load(f'{self.path}mel/{file}.npy')
-        x = np.load(f'{self.path}quant/{file}.npy')
-        return m, x
 
-    def __len__(self):
-        return len(self.metadata)
-
-    def collate(self, batch) :
-        seq_len = CONFIG.mel_len * ap.hop_length
-        pad = CONFIG.pad  # kernel size 5
-        mel_win = seq_len // ap.hop_length + 2 * pad
-        max_offsets = [x[0].shape[-1] - (mel_win + 2 * pad) for x in batch]
-        if self.eval:
-            mel_offsets = [100] * len(batch)
-        else:
-            mel_offsets = [np.random.randint(0, offset) for offset in max_offsets]
-        sig_offsets = [(offset + pad) * ap.hop_length for offset in mel_offsets]
-        
-        mels = [x[0][:, mel_offsets[i]:mel_offsets[i] + mel_win] \
-                for i, x in enumerate(batch)]
-        
-        coarse = [x[1][sig_offsets[i]:sig_offsets[i] + seq_len + 1] \
-                for i, x in enumerate(batch)]
-        
-        mels = np.stack(mels).astype(np.float32)
-        coarse = np.stack(coarse).astype(np.int64)
-        
-        mels = torch.FloatTensor(mels)
-        coarse = torch.LongTensor(coarse)
-        
-        x_input = 2 * coarse[:, :seq_len].float() / (2**bits - 1.) - 1.
-        
-        y_coarse = coarse[:, 1:]
-        
-        return x_input, mels, y_coarse
+def setup_loader(is_val=False):
+    global train_ids
+    dataset = MyDataset(
+        test_ids if is_val else train_ids,
+        DATA_PATH,
+        CONFIG.mel_len,
+        ap.hop_length,
+        ap.bits,
+        CONFIG.pad,
+        is_val,
+    )
+    sampler = DistributedSampler(dataset) if num_gpus > 1 else None
+    loader = DataLoader(
+        dataset,
+        collate_fn=dataset.collate,
+        batch_size=CONFIG.batch_size,
+        num_workers=0,
+        # shuffle=True,
+        pin_memory=True,
+        sampler=sampler,
+    )
+    return loader
 
 
 def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
     global CONFIG
+    global train_ids
     # create train loader
-    dataset = MyDataset(dataset_ids, DATA_PATH, False)
-    train_loader = DataLoader(
-        dataset,
-        collate_fn=dataset.collate,
-        batch_size=batch_size,
-        num_workers=0,
-        shuffle=True,
-        pin_memory=True,
-    )
+    train_loader = setup_loader(False)
 
     for p in optimizer.param_groups:
         p["initial_lr"] = lr
         p["lr"] = lr
 
-    # scheduler = AnnealLR(optimizer, warmup_steps=CONFIG.warmup_steps, last_epoch=step)
     for e in range(epochs):
-        running_loss = 0.
+        running_loss = 0.0
         # TODO: write validation iteration
         # val_loss = 0.
         start = time.time()
-        running_loss = 0.
+        running_loss = 0.0
         iters = len(train_loader)
         # train loop
         print(" > Training")
@@ -100,17 +88,19 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
             y_hat = model(x, m)
             y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
             y = y.unsqueeze(-1)
-            m_scaled, _ = model.module.upsample(m)
+            m_scaled, _ = model.upsample(m)
             loss = criterion(y_hat, y)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
-            running_loss += loss.item()
             speed = (i + 1) / (time.time() - start)
-            avg_loss = running_loss / (i + 1)
             step += 1
-            # scheduler.step()
             cur_lr = optimizer.param_groups[0]["lr"]
+            # Compute avg loss
+            if num_gpus > 1:
+                loss = reduce_tensor(loss.data, num_gpus)
+            running_loss += loss.item()
+            avg_loss = running_loss / (i + 1)
             if step % CONFIG.print_step == 0:
                 print(
                     " | > Epoch: {}/{} -- Batch: {}/{} -- Loss: {:.3f}"
@@ -122,30 +112,22 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
                 save_checkpoint(model, optimizer, avg_loss, MODEL_PATH, step, e)
                 print(" > modelsaved")
         # visual
-        m_scaled, _ = model.module.upsample(m)
-        plot_spec(m[0], VIS_PATH + "/mel_{}.png".format(step))
-        plot_spec(m_scaled[0].transpose(0, 1), VIS_PATH + "/mel_scaled_{}.png".format(step))
+        m_scaled, _ = model.upsample(m)
+        # plot_spec(m[0], VIS_PATH + "/mel_{}.png".format(step))
+        # plot_spec(
+        #     m_scaled[0].transpose(0, 1), VIS_PATH + "/mel_scaled_{}.png".format(step)
+        # )
         # validation loop
         evaluate(model, criterion, batch_size)
-         # synthesis a single clip
-        # generate(step)
 
-        
+
 def evaluate(model, criterion, batch_size):
     global CONFIG
-    # loss_threshold = 4.0
+    global test_ids
     # create train loader
-    dataset = MyDataset(test_ids, DATA_PATH, True)
-    val_loader = DataLoader(
-        dataset,
-        collate_fn=dataset.collate,
-        batch_size=batch_size,
-        num_workers=CONFIG.num_workers,
-        shuffle=True,
-        pin_memory=True,
-    )
+    val_loader = setup_loader(True)
 
-    running_val_loss = 0.
+    running_val_loss = 0.0
     iters = len(val_loader)
     # train loop
     print(" > Validation")
@@ -159,11 +141,18 @@ def evaluate(model, criterion, batch_size):
             y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
             y = y.unsqueeze(-1)
             loss = criterion(y_hat, y)
+            # Compute avg loss
+            if num_gpus > 1:
+                loss = reduce_tensor(loss.data, num_gpus)
             running_val_loss += loss.item()
             avg_val_loss = running_val_loss / (i + 1)
             val_step += 1
             if val_step % CONFIG.print_step == 0:
-                print(" | > Batch: {}/{} -- Loss: {:.3f}".format(iters, val_step, avg_val_loss))
+                print(
+                    " | > Batch: {}/{} -- Loss: {:.3f}".format(
+                        iters, val_step, avg_val_loss
+                    )
+                )
         print(" | > Validation Loss: {}".format(avg_val_loss))
 
 
@@ -174,11 +163,11 @@ def generate(step, samples=1, mulaw=False):
     ground_truth = [np.load(f"{DATA_PATH}quant/{test_id}.npy")]
     for i, (gt, mel) in enumerate(zip(ground_truth, test_mels)):
         print("\nGenerating: %i/%i" % (i + 1, samples))
-        gt = 2 * gt.astype(np.float32) / (2 ** bits - 1.) - 1.
+        gt = 2 * gt.astype(np.float32) / (2 ** bits - 1.0) - 1.0
         librosa.output.write_wav(
             f"{GEN_PATH}{k}k_steps_{i}_target.wav", gt, sr=ap.sample_rate
         )
-        output = model.module.generate(mel)
+        output = model.generate(mel)
         if mulaw:
             output = ap.mulaw_decoder(output, 2 ** bits)
         librosa.output.write_wav(
@@ -186,68 +175,36 @@ def generate(step, samples=1, mulaw=False):
         )
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--config_path", type=str, help="path to config file for training."
-    )
-    parser.add_argument(
-        "--restore_path", type=str, default=0, help="path for a model to fine-tune."
-    )
-    parser.add_argument(
-        "--data_path", type=str, default='', help="data path to overwrite config.json."
-    )
-    
-    args = parser.parse_args()
-    CONFIG = load_config(args.config_path)
-
-    if args.data_path != '':
-        CONFIG.data_path = args.data_path
-
-    ap = AudioProcessor(**CONFIG.audio)
-
-    bits = CONFIG.audio['bits']
-    run_name = CONFIG.run_name
-
-    # set paths
-    OUT_PATH = os.path.join(CONFIG.out_path, CONFIG.run_name)
-    MODEL_PATH = f"{OUT_PATH}/model_checkpoints/"
-    DATA_PATH = f"{OUT_PATH}/data/"
-    GEN_PATH = f"{OUT_PATH}/model_outputs/"
-    VIS_PATH = f"{OUT_PATH}/visual/"
-    shutil.copyfile(args.config_path, os.path.join(OUT_PATH, "config.json"))
-
-    # create paths
-    os.makedirs(MODEL_PATH, exist_ok=True)
-    os.makedirs(GEN_PATH, exist_ok=True)
-    os.makedirs(VIS_PATH, exist_ok=True)
+def main(args):
+    global train_ids
+    global test_ids
 
     # read meta data
-    with open(f"{DATA_PATH}dataset_ids.pkl", "rb") as f:
-        dataset_ids = pickle.load(f)
+    with open(f"{DATA_PATH}/dataset_ids.pkl", "rb") as f:
+        train_ids = pickle.load(f)
 
-    test_ids = dataset_ids[-10:]
-    test_id = dataset_ids[4]
-    print(test_ids)
-    dataset_ids = dataset_ids[:-10]
+    # pick validation set
+    test_ids = train_ids[-10:]
+    test_id = train_ids[4]
+    train_ids = train_ids[:-10]
 
     # create the model
-    model = Model(rnn_dims=512, 
-                fc_dims=512, 
-                bits=ap.bits,
-                pad=CONFIG.pad,
-                upsample_factors=(5, 5, 11), 
-                feat_dims=80,
-                compute_dims=128, 
-                res_out_dims=128, 
-                res_blocks=10,
-                hop_length=ap.hop_length,
-                sample_rate=ap.sample_rate).cuda()
+    model = Model(
+        rnn_dims=512,
+        fc_dims=512,
+        bits=ap.bits,
+        pad=CONFIG.pad,
+        upsample_factors=(5, 5, 11),
+        feat_dims=80,
+        compute_dims=128,
+        res_out_dims=128,
+        res_blocks=10,
+        hop_length=ap.hop_length,
+        sample_rate=ap.sample_rate,
+    ).cuda()
 
     num_parameters = count_parameters(model)
     print(" > Number of model parameters: {}".format(num_parameters))
-    if use_cuda:
-        model = nn.DataParallel(model).cuda()
     optimizer = optim.Adam(model.parameters())
 
     step = 0
@@ -262,20 +219,28 @@ if __name__ == "__main__":
             # Partial initialization: if there is a mismatch with new and old layer, it is skipped.
             # 1. filter out unnecessary keys
             pretrained_dict = {
-                k: v
-                for k, v in checkpoint['model'].items() if k in model_dict 
+                k: v for k, v in checkpoint["model"].items() if k in model_dict
             }
             # 2. filter out different size layers
             pretrained_dict = {
                 k: v
-                for k, v in pretrained_dict.items() if v.numel() == model_dict[k].numel()
+                for k, v in pretrained_dict.items()
+                if v.numel() == model_dict[k].numel()
             }
             # 3. overwrite entries in the existing state dict
             model_dict.update(pretrained_dict)
             # 4. load the new state dict
             model.load_state_dict(model_dict)
-            print(" | > {} / {} layers are initialized".format(len(pretrained_dict), len(model_dict)))
+            print(
+                " | > {} / {} layers are initialized".format(
+                    len(pretrained_dict), len(model_dict)
+                )
+            )
         step = checkpoint["step"]
+
+    # DISTRIBUTED
+    if num_gpus > 1:
+        model = apply_gradient_allreduce(model)
 
     # define train functions
     criterion = nn.NLLLoss().cuda()
@@ -292,3 +257,95 @@ if __name__ == "__main__":
         step=step,
         lr=CONFIG.lr,
     )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config_path", type=str, help="path to config file for training."
+    )
+    parser.add_argument(
+        "--restore_path", type=str, default=0, help="path for a model to fine-tune."
+    )
+    parser.add_argument(
+        "--data_path", type=str, default="", help="data path to overwrite config.json."
+    )
+    parser.add_argument(
+        "--output_path", type=str, help="path for training outputs.", default=""
+    )
+    # DISTRUBUTED
+    parser.add_argument(
+        "--rank",
+        type=int,
+        default=0,
+        help="DISTRIBUTED: process rank for distributed training.",
+    )
+    parser.add_argument(
+        "--group_id", type=str, default="", help="DISTRIBUTED: process group id."
+    )
+
+    args = parser.parse_args()
+    CONFIG = load_config(args.config_path)
+
+    if args.data_path != "":
+        CONFIG.data_path = args.data_path
+    DATA_PATH = CONFIG.data_path
+
+    # DISTRUBUTED
+    if num_gpus > 1:
+        init_distributed(
+            args.rank,
+            num_gpus,
+            args.group_id,
+            CONFIG.distributed["backend"],
+            CONFIG.distributed["url"],
+        )
+
+    global ap
+    ap = AudioProcessor(**CONFIG.audio)
+    bits = CONFIG.audio["bits"]
+
+    # setup output paths and read configs
+    _ = os.path.dirname(os.path.realpath(__file__))
+    if args.data_path != "":
+        CONFIG.data_path = args.data_path
+
+    if args.output_path == "":
+        OUT_PATH = os.path.join(_, CONFIG.output_path)
+    else:
+        OUT_PATH = args.output_path
+
+    if args.group_id == "":
+        OUT_PATH = create_experiment_folder(OUT_PATH, CONFIG.model_name)
+
+    AUDIO_PATH = os.path.join(OUT_PATH, "test_audios")
+
+    if args.rank == 0:
+        # set paths
+        MODEL_PATH = f"{OUT_PATH}/model_checkpoints/"
+        GEN_PATH = f"{OUT_PATH}/model_outputs/"
+        VIS_PATH = f"{OUT_PATH}/visual/"
+        shutil.copyfile(args.config_path, os.path.join(OUT_PATH, "config.json"))
+
+        # create paths
+        os.makedirs(MODEL_PATH, exist_ok=True)
+        os.makedirs(GEN_PATH, exist_ok=True)
+        os.makedirs(VIS_PATH, exist_ok=True)
+
+        os.makedirs(AUDIO_PATH, exist_ok=True)
+        shutil.copyfile(args.config_path, os.path.join(OUT_PATH, "config.json"))
+        os.chmod(AUDIO_PATH, 0o775)
+        os.chmod(OUT_PATH, 0o775)
+
+    try:
+        main(args)
+    except KeyboardInterrupt:
+        remove_experiment_folder(OUT_PATH)
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)
+    except Exception:
+        remove_experiment_folder(OUT_PATH)
+        traceback.print_exc()
+        sys.exit(1)

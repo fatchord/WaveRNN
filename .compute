@@ -1,4 +1,4 @@
 #!/bin/bash
-source ../tmp/venv/bin/activate
-python extract_features.py --config_path config.json
-python train.py --config_path config.json
+ls ${SHARED_DIR}/data/keithito
+pip3 install https://download.pytorch.org/whl/cu100/torch-1.0.1.post2-cp36-cp36m-linux_x86_64.whl
+python3 distribute.py --config_path config.json  --data_path ${USER_DIR}/wavernn_4152/ 

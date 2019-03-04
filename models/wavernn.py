@@ -125,11 +125,13 @@ class Model(nn.Module) :
         x = torch.cat([x.unsqueeze(-1), mels, a1], dim=2)
         x = self.I(x)
         res = x
+        self.rnn1.flatten_parameters()
         x, _ = self.rnn1(x, h1)
         
         x = x + res
         res = x
         x = torch.cat([x, a2], dim=2)
+        self.rnn2.flatten_parameters()
         x, _ = self.rnn2(x, h2)
         
         x = x + res
