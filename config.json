@@ -30,9 +30,10 @@
     "warmup_steps": 3000,
     "batch_size": 32,
     "checkpoint_step": 5000,
-    "print_step": 20,
+    "print_step": 100,
     "num_workers": 8,
     "mel_len": 8,
+    "pad": 2,
 
     // "data_path": "/snakepit/shared/data/keithito/LJSpeech-1.1/wavs/",
     "out_path": "tmp/"

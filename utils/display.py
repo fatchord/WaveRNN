@@ -44,4 +44,5 @@ def plot_spec(M, path=None) :
         plt.savefig(path)
     else:
         plt.show()
+    plt.close()
 

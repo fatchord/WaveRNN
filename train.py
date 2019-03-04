@@ -22,52 +22,57 @@ if use_cuda:
 
 # define data classes
 class MyDataset(Dataset):
-    def __init__(self, ids, path):
+    def __init__(self, ids, path, eval=False):
         self.path = path
         self.metadata = ids
-
+        self.eval = eval
+        
     def __getitem__(self, index):
         file = self.metadata[index]
-        m = np.load(f"{self.path}mel/{file}.npy")
-        x = np.load(f"{self.path}quant/{file}.npy")
+        m = np.load(f'{self.path}mel/{file}.npy')
+        x = np.load(f'{self.path}quant/{file}.npy')
         return m, x
 
     def __len__(self):
         return len(self.metadata)
 
-
-def collate(batch):
-    mel_win = CONFIG.mel_len 
-    seq_len = ap.hop_length * mel_win
-
-    mels = []
-    coarse = []
-    for x in batch:
-        max_offset = x[0].shape[-1] - (mel_win + 2)
-        mel_offset = np.random.randint(0, max_offset)
-        sig_offset = mel_offset * ap.hop_length
-        assert mel_offset + mel_win < x[0].shape[1], "{} vs {}".format(mel_offset + mel_win, x[0].shape)
-        mels.append(x[0][:, mel_offset:(mel_offset + mel_win)])
+    def collate(self, batch) :
+        seq_len = CONFIG.mel_len * ap.hop_length
+        pad = CONFIG.pad  # kernel size 5
+        mel_win = seq_len // ap.hop_length + 2 * pad
+        max_offsets = [x[0].shape[-1] - (mel_win + 2 * pad) for x in batch]
+        if self.eval:
+            mel_offsets = [100] * len(batch)
+        else:
+            mel_offsets = [np.random.randint(0, offset) for offset in max_offsets]
+        sig_offsets = [(offset + pad) * ap.hop_length for offset in mel_offsets]
         
-        assert sig_offset + seq_len + 1 < x[1].shape[0], "{} vs {} {} {}".format(sig_offset + seq_len + 1, x[1].shape, sig_offset, seq_len)
-        coarse.append(x[1][sig_offset:(sig_offset + seq_len + 1)])
-
-    mels = torch.FloatTensor(np.stack(mels).astype(np.float32))
-    coarse = torch.LongTensor(np.stack(coarse).astype(np.int64))
-
-    x_input = 2 * coarse[:, :seq_len].float() / (2**ap.bits - 1.) - 1.
-    y_coarse = coarse[:, 1:]
-
-    return x_input, mels, y_coarse
+        mels = [x[0][:, mel_offsets[i]:mel_offsets[i] + mel_win] \
+                for i, x in enumerate(batch)]
+        
+        coarse = [x[1][sig_offsets[i]:sig_offsets[i] + seq_len + 1] \
+                for i, x in enumerate(batch)]
+        
+        mels = np.stack(mels).astype(np.float32)
+        coarse = np.stack(coarse).astype(np.int64)
+        
+        mels = torch.FloatTensor(mels)
+        coarse = torch.LongTensor(coarse)
+        
+        x_input = 2 * coarse[:, :seq_len].float() / (2**bits - 1.) - 1.
+        
+        y_coarse = coarse[:, 1:]
+        
+        return x_input, mels, y_coarse
 
 
 def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
     global CONFIG
     # create train loader
-    dataset = MyDataset(dataset_ids, DATA_PATH)
+    dataset = MyDataset(dataset_ids, DATA_PATH, False)
     train_loader = DataLoader(
         dataset,
-        collate_fn=collate,
+        collate_fn=dataset.collate,
         batch_size=batch_size,
         num_workers=0,
         shuffle=True,
@@ -95,6 +100,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
             y_hat = model(x, m)
             y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
             y = y.unsqueeze(-1)
+            m_scaled, _ = model.module.upsample(m)
             loss = criterion(y_hat, y)
             optimizer.zero_grad()
             loss.backward()
@@ -116,7 +122,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
                 save_checkpoint(model, optimizer, avg_loss, MODEL_PATH, step, e)
                 print(" > modelsaved")
         # visual
-        m_scaled = model.module.upsample(m)
+        m_scaled, _ = model.module.upsample(m)
         plot_spec(m[0], VIS_PATH + "/mel_{}.png".format(step))
         plot_spec(m_scaled[0].transpose(0, 1), VIS_PATH + "/mel_scaled_{}.png".format(step))
         # validation loop
@@ -129,10 +135,10 @@ def evaluate(model, criterion, batch_size):
     global CONFIG
     # loss_threshold = 4.0
     # create train loader
-    dataset = MyDataset(test_ids, DATA_PATH)
+    dataset = MyDataset(test_ids, DATA_PATH, True)
     val_loader = DataLoader(
         dataset,
-        collate_fn=collate,
+        collate_fn=dataset.collate,
         batch_size=batch_size,
         num_workers=CONFIG.num_workers,
         shuffle=True,
@@ -220,22 +226,24 @@ if __name__ == "__main__":
     with open(f"{DATA_PATH}dataset_ids.pkl", "rb") as f:
         dataset_ids = pickle.load(f)
 
-    test_ids = dataset_ids[-500:]
-    test_id = test_ids[1]
-    print(test_id)
-    dataset_ids = dataset_ids[:-500]
+    test_ids = dataset_ids[-10:]
+    test_id = dataset_ids[4]
+    print(test_ids)
+    dataset_ids = dataset_ids[:-10]
 
     # create the model
-    model = Model(
-        rnn_dims=512,
-        fc_dims=512,
-        bits=bits,
-        upsample_factor=ap.hop_length,
-        feat_dims=80,
-        compute_dims=128,
-        res_out_dims=128,
-        res_blocks=10,
-    )
+    model = Model(rnn_dims=512, 
+                fc_dims=512, 
+                bits=ap.bits,
+                pad=CONFIG.pad,
+                upsample_factors=(5, 5, 11), 
+                feat_dims=80,
+                compute_dims=128, 
+                res_out_dims=128, 
+                res_blocks=10,
+                hop_length=ap.hop_length,
+                sample_rate=ap.sample_rate).cuda()
+
     num_parameters = count_parameters(model)
     print(" > Number of model parameters: {}".format(num_parameters))
     if use_cuda:
