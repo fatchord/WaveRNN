@@ -30,16 +30,16 @@
         "url": "tcp:\/\/localhost:54321"
     },
 
-    "epochs": 2000,
+    "epochs": 10000,
     "lr": 0.0001,
     "warmup_steps": 3000,
     "batch_size": 32,
-    "checkpoint_step": 5000,
+    "checkpoint_step": 1000,
     "print_step": 25,
     "num_workers": 8,
     "mel_len": 8,
     "pad": 2,
 
     "data_path": "/home/erogol/Data/LJSpeech-1.1/wavernn_4152/",
-    "output_path": "../keep/"
+    "output_path": "/media/erogol/data_ssd/Data/models/wavernn/"
 }

@@ -34,8 +34,8 @@ torch.backends.cudnn.benchmark = False
 torch.manual_seed(54321)
 use_cuda = torch.cuda.is_available()
 num_gpus = torch.cuda.device_count()
-print(" > Using CUDA: ", use_cuda)
-print(" > Number of GPUs: ", num_gpus)
+print(" > Using CUDA: ", use_cuda, flush=True)
+print(" > Number of GPUs: ", num_gpus, flush=True)
 
 
 def setup_loader(is_val=False):
@@ -62,7 +62,7 @@ def setup_loader(is_val=False):
     return loader
 
 
-def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
+def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr, args):
     global CONFIG
     global train_ids
     # create train loader
@@ -80,7 +80,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
         running_loss = 0.0
         iters = len(train_loader)
         # train loop
-        print(" > Training")
+        print(" > Training", flush=True)
         model.train()
         for i, (x, m, y) in enumerate(train_loader):
             if use_cuda:
@@ -108,11 +108,11 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr):
                         e + 1, epochs, i + 1, iters, avg_loss, speed, step, cur_lr
                     )
                 )
-            if step % CONFIG.checkpoint_step == 0:
+            if step % CONFIG.checkpoint_step == 0 and args.rank == 0:
                 save_checkpoint(model, optimizer, avg_loss, MODEL_PATH, step, e)
-                print(" > modelsaved")
+                print(" > checkpoint saved", flush=True)
         # visual
-        m_scaled, _ = model.upsample(m)
+        # m_scaled, _ = model.upsample(m)
         # plot_spec(m[0], VIS_PATH + "/mel_{}.png".format(step))
         # plot_spec(
         #     m_scaled[0].transpose(0, 1), VIS_PATH + "/mel_scaled_{}.png".format(step)
@@ -130,7 +130,7 @@ def evaluate(model, criterion, batch_size):
     running_val_loss = 0.0
     iters = len(val_loader)
     # train loop
-    print(" > Validation")
+    print(" > Validation", flush=True)
     model.eval()
     val_step = 0
     with torch.no_grad():
@@ -153,7 +153,7 @@ def evaluate(model, criterion, batch_size):
                         iters, val_step, avg_val_loss
                     )
                 )
-        print(" | > Validation Loss: {}".format(avg_val_loss))
+        print(" | > Validation Loss: {}".format(avg_val_loss), flush=True)
 
 
 def generate(step, samples=1, mulaw=False):
@@ -204,7 +204,7 @@ def main(args):
     ).cuda()
 
     num_parameters = count_parameters(model)
-    print(" > Number of model parameters: {}".format(num_parameters))
+    print(" > Number of model parameters: {}".format(num_parameters), flush=True)
     optimizer = optim.Adam(model.parameters())
 
     step = 0
@@ -256,6 +256,7 @@ def main(args):
         classes=2 ** bits,
         step=step,
         lr=CONFIG.lr,
+        args=args,
     )
 
 

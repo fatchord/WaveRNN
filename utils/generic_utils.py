@@ -11,7 +11,7 @@ import subprocess
 def remove_experiment_folder(experiment_path):
     """Check folder if there is a checkpoint, otherwise remove the folder"""
 
-    checkpoint_files = glob.glob(experiment_path + "/*.pth.tar")
+    checkpoint_files = glob.glob(experiment_path + "/**/*.pth.tar", recursive=True)
     if len(checkpoint_files) < 1:
         if os.path.exists(experiment_path):
             shutil.rmtree(experiment_path)
