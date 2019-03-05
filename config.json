@@ -1,5 +1,5 @@
 {
-    "model_name": "wavernn_tts_4152",
+    "model_name": "wavernn_tts_4152_local",
 
     "audio":{
         "audio_processor": "audio",     // to use dictate different audio processors, if available.
