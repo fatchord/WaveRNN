@@ -1,5 +1,6 @@
 {
-    "model_name": "wavernn_tts_4152_local",
+    "model_name": "wavernn_tts_4152_finetune",
+    "model_description": "finetunning long lasting model after 980K iterations.",
 
     "audio":{
         "audio_processor": "audio",     // to use dictate different audio processors, if available.
