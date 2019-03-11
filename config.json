@@ -1,10 +1,10 @@
 {
-    "model_name": "wavernn_tts_4152_finetune",
-    "model_description": "finetunning long lasting model after 980K iterations.",
+    "model_name": "wavernn_4241_finetune_10bit",
+    "model_description": "10bit finetune model from 9 bit model",
 
     "audio":{
         "audio_processor": "audio",     // to use dictate different audio processors, if available.
-        "bits": 9,
+        "bits": 10,
         // Audio processing parameters
         "num_mels": 80,         // size of the mel spec frame. 
         "num_freq": 1025,       // number of stft frequency levels. Size of the linear spectogram frame.
@@ -41,6 +41,6 @@
     "mel_len": 8,
     "pad": 2,
 
-    "data_path": "/home/erogol/Data/LJSpeech-1.1/wavernn_4152/",
+    "data_path": "/home/erogol/Data/LJSpeech-1.1/wavernn_4241/",
     "output_path": "/media/erogol/data_ssd/Data/models/wavernn/"
 }
