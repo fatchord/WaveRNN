@@ -3,10 +3,8 @@ import math
 import os
 import pickle
 import shutil
-import traceback
 import sys
-
-sys.path.insert(0, "/home/erogol/projects/")
+import traceback
 
 import librosa
 import matplotlib.pyplot as plt
@@ -16,18 +14,18 @@ from torch import nn, optim
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
-from distribute import *
 from dataset import MyDataset
+from distribute import *
+from models.losses import gaussian_loss, sample_from_gaussian
 from models.wavernn import Model
 from utils.audio import AudioProcessor
 from utils.display import *
-from utils.generic_utils import (
-    AnnealLR,
-    count_parameters,
-    load_config,
-    save_checkpoint,
-    remove_experiment_folder,
-)
+from utils.generic_utils import (AnnealLR, count_parameters, load_config,
+                                 remove_experiment_folder, save_checkpoint)
+
+sys.path.insert(0, "/home/erogol/projects/")
+
+
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = False
@@ -47,6 +45,7 @@ def setup_loader(is_val=False):
         ap.hop_length,
         ap.bits,
         CONFIG.pad,
+        ap,
         is_val,
     )
     sampler = DistributedSampler(dataset) if num_gpus > 1 else None
@@ -86,8 +85,7 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr, ar
             if use_cuda:
                 x, m, y = x.cuda(), m.cuda(), y.cuda()
             y_hat = model(x, m)
-            y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
-            y = y.unsqueeze(-1)
+            y_hat = y_hat.transpose(1, 2)
             m_scaled, _ = model.upsample(m)
             loss = criterion(y_hat, y)
             optimizer.zero_grad()
@@ -243,7 +241,7 @@ def main(args):
         model = apply_gradient_allreduce(model)
 
     # define train functions
-    criterion = nn.NLLLoss().cuda()
+    criterion = gaussian_loss
     model.train()
 
     # HIT IT!!!

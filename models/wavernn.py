@@ -4,6 +4,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 import time
+from .losses import sample_from_gaussian
 
 
 def stream(string, variables) :
@@ -95,7 +96,7 @@ class Model(nn.Module) :
                  hop_length, sample_rate):
         super().__init__()
         self.pad = pad
-        self.n_classes = 2**bits
+        self.n_classes = 2
         self.rnn_dims = rnn_dims
         self.aux_dims = res_out_dims // 4
         self.hop_length = hop_length
@@ -140,7 +141,7 @@ class Model(nn.Module) :
         
         x = torch.cat([x, a4], dim=2)
         x = F.relu(self.fc2(x))
-        return F.log_softmax(self.fc3(x), dim=-1)
+        return self.fc3(x)
     
     
     def generate(self, mels, batched, target, overlap) :
@@ -193,12 +194,10 @@ class Model(nn.Module) :
                 x = F.relu(self.fc2(x))
                 
                 logits = self.fc3(x)
-                posterior = F.softmax(logits, dim=1)
-                distrib = torch.distributions.Categorical(posterior)
+                sample = sample_from_gaussian(logits.unsqueeze(0))
                 
-                sample = 2 * distrib.sample().float() / (self.n_classes - 1.) - 1.
-                output.append(sample)
-                x = sample.unsqueeze(-1)
+                output.append(sample.view(-1))
+                x = torch.FloatTensor([[sample]]).cuda()
                 
                 if i % 100 == 0 : self.gen_display(i, seq_len, b_size, start)
                     

@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 
 
 class MyDataset(Dataset):
-    def __init__(self, ids, path, mel_len, hop_length, bits, pad, eval=False):
+    def __init__(self, ids, path, mel_len, hop_length, bits, pad, ap, eval=False):
         self.path = path
         self.metadata = ids
         self.eval = eval
@@ -12,11 +12,12 @@ class MyDataset(Dataset):
         self.pad = pad 
         self.hop_length = hop_length
         self.bits = bits
+        self.ap = ap
 
     def __getitem__(self, index):
         file = self.metadata[index]
         m = np.load(f"{self.path}mel/{file}.npy")
-        x = np.load(f"{self.path}quant/{file}.npy")
+        x = self.ap.load_wav(f"{self.path}wavs/{file}.wav")
         return m, x
 
     def __len__(self):
@@ -42,15 +43,12 @@ class MyDataset(Dataset):
             x[1][sig_offsets[i] : sig_offsets[i] + seq_len + 1]
             for i, x in enumerate(batch)
         ]
-
         mels = np.stack(mels).astype(np.float32)
-        coarse = np.stack(coarse).astype(np.int64)
+        coarse = np.stack(coarse).astype(np.float32)
 
         mels = torch.FloatTensor(mels)
-        coarse = torch.LongTensor(coarse)
+        coarse = torch.FloatTensor(coarse)
 
-        x_input = 2 * coarse[:, :seq_len].float() / (2 ** self.bits - 1.0) - 1.0
-
+        x_input = coarse[:, :seq_len]
         y_coarse = coarse[:, 1:]
-
         return x_input, mels, y_coarse
