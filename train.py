@@ -20,8 +20,9 @@ from models.losses import gaussian_loss, sample_from_gaussian
 from models.wavernn import Model
 from utils.audio import AudioProcessor
 from utils.display import *
-from utils.generic_utils import (AnnealLR, count_parameters, load_config,
-                                 remove_experiment_folder, save_checkpoint)
+from utils.generic_utils import (count_parameters, load_config,
+                                 remove_experiment_folder, save_checkpoint,
+                                 check_update)
 
 sys.path.insert(0, "/home/erogol/projects/")
 
@@ -61,7 +62,7 @@ def setup_loader(is_val=False):
     return loader
 
 
-def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr, args):
+def train(model, optimizer, criterion, scheduler, epochs, batch_size, classes, step, lr, args):
     global CONFIG
     global train_ids
     # create train loader
@@ -84,10 +85,13 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr, ar
         for i, (x, m, y) in enumerate(train_loader):
             if use_cuda:
                 x, m, y = x.cuda(), m.cuda(), y.cuda()
+            scheduler.step()
             y_hat = model(x, m)
-            y_hat = y_hat.transpose(1, 2)
+            # y_hat = y_hat.transpose(1, 2)
+            y = y.unsqueeze(-1)
             m_scaled, _ = model.upsample(m)
             loss = criterion(y_hat, y)
+            grad_norm, _ = check_update(model, 0.5)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -102,8 +106,8 @@ def train(model, optimizer, criterion, epochs, batch_size, classes, step, lr, ar
             if step % CONFIG.print_step == 0:
                 print(
                     " | > Epoch: {}/{} -- Batch: {}/{} -- Loss: {:.3f}"
-                    " -- Speed: {:.2f} steps/sec -- Step: {} -- lr: {:}".format(
-                        e + 1, epochs, i + 1, iters, avg_loss, speed, step, cur_lr
+                    " -- Speed: {:.2f} steps/sec -- Step: {} -- lr: {} -- GradNorm: {}".format(
+                        e + 1, epochs, i + 1, iters, avg_loss, speed, step, cur_lr, grad_norm
                     )
                 )
             if step % CONFIG.checkpoint_step == 0 and args.rank == 0:
@@ -136,7 +140,7 @@ def evaluate(model, criterion, batch_size):
             if use_cuda:
                 x, m, y = x.cuda(), m.cuda(), y.cuda()
             y_hat = model(x, m)
-            y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
+            # y_hat = y_hat.transpose(1, 2)
             y = y.unsqueeze(-1)
             loss = criterion(y_hat, y)
             # Compute avg loss
@@ -203,7 +207,11 @@ def main(args):
 
     num_parameters = count_parameters(model)
     print(" > Number of model parameters: {}".format(num_parameters), flush=True)
-    optimizer = optim.Adam(model.parameters())
+    optimizer = optim.Adam(model.parameters(), lr=CONFIG.lr)
+    
+    # slow start for the first 5 epochs
+    lr_lambda = lambda epoch: min(epoch / CONFIG.warmup_steps , 1)
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lr_lambda)
 
     step = 0
     # restore any checkpoint
@@ -211,7 +219,8 @@ def main(args):
         checkpoint = torch.load(args.restore_path)
         try:
             model.load_state_dict(checkpoint["model"])
-            optimizer.load_state_dict(checkpoint["optimizer"])
+            # TODO: fix resetting restored optimizer lr 
+            # optimizer.load_state_dict(checkpoint["optimizer"])
         except:
             model_dict = model.state_dict()
             # Partial initialization: if there is a mismatch with new and old layer, it is skipped.
@@ -249,11 +258,12 @@ def main(args):
         model,
         optimizer,
         criterion,
+        scheduler,
         epochs=1000,
         batch_size=CONFIG.batch_size,
         classes=2 ** bits,
         step=step,
-        lr=CONFIG.lr,
+        lr=CONFIG.lr * num_gpus,
         args=args,
     )
 
