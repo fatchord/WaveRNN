@@ -1,6 +1,6 @@
 {
-    "model_name": "wavernn_4241_finetune_10bit",
-    "model_description": "10bit finetune model from 9 bit model",
+    "model_name": "wavernn_4241_finetune_gaussian",
+    "model_description": "Gaussian model as in Clarinet",
 
     "audio":{
         "audio_processor": "audio",     // to use dictate different audio processors, if available.
@@ -36,7 +36,7 @@
     "warmup_steps": 3000,
     "batch_size": 32,
     "checkpoint_step": 1000,
-    "print_step": 100,
+    "print_step": 10,
     "num_workers": 8,
     "mel_len": 8,
     "pad": 2,
