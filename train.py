@@ -259,7 +259,7 @@ def main(args):
         optimizer,
         criterion,
         scheduler,
-        epochs=1000,
+        epochs=CONFIG.epochs,
         batch_size=CONFIG.batch_size,
         classes=2 ** bits,
         step=step,
