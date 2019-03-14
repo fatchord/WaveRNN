@@ -55,10 +55,10 @@ class AttrDict(dict):
         self.__dict__ = self
 
 
-class AnnealLR(torch.optim.lr_scheduler._LRScheduler):
+class SlowStartLR(torch.optim.lr_scheduler._LRScheduler):
     def __init__(self, optimizer, warmup_steps=0.1, last_epoch=-1):
         self.warmup_steps = float(warmup_steps)
-        super(AnnealLR, self).__init__(optimizer, last_epoch)
+        super(SlowStartLR, self).__init__(optimizer, last_epoch)
 
     def get_lr(self):
         step = max(self.last_epoch, 1)

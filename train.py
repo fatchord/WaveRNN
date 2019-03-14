@@ -91,7 +91,7 @@ def train(model, optimizer, criterion, scheduler, epochs, batch_size, classes, s
             y = y.unsqueeze(-1)
             m_scaled, _ = model.upsample(m)
             loss = criterion(y_hat, y)
-            grad_norm, _ = check_update(model, 0.5)
+            grad_norm, _ = check_update(model, 2)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
