@@ -86,15 +86,16 @@ def train(model, optimizer, criterion, scheduler, epochs, batch_size, classes, s
             if use_cuda:
                 x, m, y = x.cuda(), m.cuda(), y.cuda()
             scheduler.step()
+            optimizer.zero_grad()
             y_hat = model(x, m)
             # y_hat = y_hat.transpose(1, 2)
             y = y.unsqueeze(-1)
             m_scaled, _ = model.upsample(m)
             loss = criterion(y_hat, y)
-            grad_norm, _ = check_update(model, 2)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+            grad_norm, skip_flag = check_update(model, 2) 
+            if not skip_flag:           
+                loss.backward()
+                optimizer.step()
             speed = (i + 1) / (time.time() - start)
             step += 1
             cur_lr = optimizer.param_groups[0]["lr"]
