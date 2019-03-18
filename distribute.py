@@ -133,7 +133,11 @@ def main(args):
     Call train.py as a new process and pass command arguments
     """
     CONFIG = load_config(args.config_path)
-    OUT_PATH = create_experiment_folder(CONFIG.output_path, CONFIG.model_name)
+    if args.output_path == "":
+        OUT_PATH = os.path.join(_, CONFIG.output_path)
+    else:
+        OUT_PATH = args.output_path
+    OUT_PATH = create_experiment_folder(OUT_PATH, CONFIG.model_name)
     stdout_path = os.path.join(OUT_PATH, "process_stdout/")
 
     num_gpus = torch.cuda.device_count()
@@ -179,6 +183,9 @@ if __name__ == '__main__':
         '--config_path',
         type=str,
         help='path to config file for training',
+    )
+    parser.add_argument(
+        "--output_path", type=str, help="path for training outputs.", default=""
     )
     parser.add_argument(
         '--data_path', type=str, help='dataset path.', default='')
