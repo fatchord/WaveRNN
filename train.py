@@ -90,11 +90,11 @@ def train(model, optimizer, criterion, scheduler, epochs, batch_size, classes, s
             y_hat = model(x, m)
             # y_hat = y_hat.transpose(1, 2)
             y = y.unsqueeze(-1)
-            m_scaled, _ = model.upsample(m)
+            # m_scaled, _ = model.upsample(m)
             loss = criterion(y_hat, y)
-            grad_norm, skip_flag = check_update(model, 2) 
+            loss.backward()
+            grad_norm, skip_flag = check_update(model, 100000) 
             if not skip_flag:           
-                loss.backward()
                 optimizer.step()
             speed = (i + 1) / (time.time() - start)
             step += 1
@@ -109,7 +109,7 @@ def train(model, optimizer, criterion, scheduler, epochs, batch_size, classes, s
                     " | > Epoch: {}/{} -- Batch: {}/{} -- Loss: {:.3f}"
                     " -- Speed: {:.2f} steps/sec -- Step: {} -- lr: {} -- GradNorm: {}".format(
                         e + 1, epochs, i + 1, iters, avg_loss, speed, step, cur_lr, grad_norm
-                    )
+                    ), flush=True
                 )
             if step % CONFIG.checkpoint_step == 0 and args.rank == 0:
                 save_checkpoint(model, optimizer, avg_loss, MODEL_PATH, step, e)
