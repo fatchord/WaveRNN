@@ -113,7 +113,7 @@ def discretized_mix_logistic_loss(y_hat, y, num_classes=65536,
     log_probs = log_probs + F.log_softmax(logit_probs, -1)
 
     if reduce:
-        return -torch.sum(log_sum_exp(log_probs))
+        return -torch.mean(log_sum_exp(log_probs))
     else:
         return -log_sum_exp(log_probs).unsqueeze(-1)
 
