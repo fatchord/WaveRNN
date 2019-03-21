@@ -1,4 +1,4 @@
 #!/bin/bash
 pip3 install https://download.pytorch.org/whl/cu100/torch-1.0.1.post2-cp36-cp36m-linux_x86_64.whl
 pip3 install -r requirements.txt
-python3 distribute.py --config_path config.json  --data_path ${USER_DIR}/wavernn_mixture.pth.tar/  --output_path ../keep/
+python3 distribute.py --config_path config.json  --data_path ${USER_DIR}/wavernn_4241/  --output_path ../keep/  --restore_path ${USER_DIR}/wavernn_mixture.pth.tar

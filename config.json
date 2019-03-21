@@ -37,7 +37,7 @@
     "warmup_steps": 1,
     "batch_size": 32,
     "checkpoint_step": 1000,
-    "print_step": 100,
+    "print_step": 10,
     "num_workers": 8,
     "mel_len": 8,
     "pad": 2,
