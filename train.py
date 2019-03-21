@@ -16,7 +16,7 @@ from torch.utils.data.distributed import DistributedSampler
 
 from dataset import MyDataset
 from distribute import *
-from models.losses import gaussian_loss, sample_from_gaussian
+from models.losses import gaussian_loss, discretized_mix_logistic_loss
 from models.wavernn import Model
 from utils.audio import AudioProcessor
 from utils.display import *
@@ -91,9 +91,9 @@ def train(model, optimizer, criterion, scheduler, epochs, batch_size, classes, s
             # y_hat = y_hat.transpose(1, 2)
             y = y.unsqueeze(-1)
             # m_scaled, _ = model.upsample(m)
-            loss = criterion(y_hat, y)
+            loss = criterion(y_hat, y, reduce=True)
             loss.backward()
-            grad_norm, skip_flag = check_update(model, 100000) 
+            grad_norm, skip_flag = check_update(model, CONFIG.grad_clip) 
             if not skip_flag:           
                 optimizer.step()
             speed = (i + 1) / (time.time() - start)
@@ -251,7 +251,7 @@ def main(args):
         model = apply_gradient_allreduce(model)
 
     # define train functions
-    criterion = gaussian_loss
+    criterion = discretized_mix_logistic_loss
     model.train()
 
     # HIT IT!!!

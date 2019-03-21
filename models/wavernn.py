@@ -4,7 +4,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 import time
-from .losses import sample_from_gaussian
+from .losses import sample_from_gaussian, sample_from_discretized_mix_logistic
 
 
 def stream(string, variables) :
@@ -96,7 +96,7 @@ class Model(nn.Module) :
                  hop_length, sample_rate):
         super().__init__()
         self.pad = pad
-        self.n_classes = 2
+        self.n_classes = 3 * 10
         self.rnn_dims = rnn_dims
         self.aux_dims = res_out_dims // 4
         self.hop_length = hop_length
@@ -194,7 +194,7 @@ class Model(nn.Module) :
                 x = F.relu(self.fc2(x))
                 
                 logits = self.fc3(x)
-                sample = sample_from_gaussian(logits.unsqueeze(0))
+                sample = sample_from_discretized_mix_logistic(logits.unsqueeze(0).transpose(1, 2))
                 
                 output.append(sample.view(-1))
                 x = torch.FloatTensor([[sample]]).cuda()
