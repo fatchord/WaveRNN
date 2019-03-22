@@ -34,7 +34,7 @@
     "epochs": 10000,
     "grad_clip": 1000,
     "lr": 0.0001,
-    "warmup_steps": 1,
+    "warmup_steps": 100,
     "batch_size": 32,
     "checkpoint_step": 1000,
     "print_step": 10,
