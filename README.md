@@ -23,14 +23,17 @@ Once that's completed you can start training:
 
 # Samples
 
-[Can be found here.]()
+[Can be found here.](https://fatchord.github.io/model_outputs/)
 
 # Pretrained Models
 
 Coming Soon
 
-# References and Resources
+# References
 
+* [Efficient Neural Audio Synthesis](https://arxiv.org/abs/1802.08435v1)
+* [keithito tacotron](https://github.com/keithito/tacotron)
+* Special thanks to github users [G-Wang](https://github.com/G-Wang), [geneing](https://github.com/geneing)
 
 
 
