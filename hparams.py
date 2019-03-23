@@ -16,8 +16,7 @@ fmin = 40
 min_level_db = -100
 ref_level_db = 20
 bits = 9
-pad = 2
-seq_len = hop_length * 5  # must be a multiple of hop_length
+
 
 
 # MODEL
@@ -35,3 +34,5 @@ total_steps = 300_000
 batch_size = 32
 test_samples = 50
 lr = 1e-4
+pad = 2
+seq_len = hop_length * 5  # must be a multiple of hop_length
