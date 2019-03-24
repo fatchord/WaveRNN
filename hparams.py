@@ -5,16 +5,16 @@ model_id = '9bit_mulaw'
 
 
 # DSP
-sample_rate = 22050             # Makes the hop_length a little 'easier' for the vocoder than 24kHz. Sound quality is very similar
+sample_rate = 22050
 n_fft = 2048
 fft_bins = n_fft // 2 + 1
 num_mels = 80
-hop_length = 275                # 12.5ms - in line with Tacotron 2 paper - personally found this works well with seq2seq TTS in general)
+hop_length = 275                # 12.5ms - in line with Tacotron 2 paper
 win_length = 1100               # 50ms - same as above
 fmin = 40
 min_level_db = -100
 ref_level_db = 20
-bits = 9                        # Nine bits with mu law is a pretty good compromise on noise. Audio retains 'smoothness' at this setting.
+bits = 9                        # bit depth of signal
 mu_law = True                   # Recommended to suppress noise
 
 
