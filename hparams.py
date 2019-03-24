@@ -1,5 +1,5 @@
 # CONFIG
-wav_path = '/media/user/Data Storage/Data/LJSpeech-1.0'
+wav_path = '/path/to/wav_files/'
 data_path = 'data/'
 model_id = '9bit_mulaw'
 
