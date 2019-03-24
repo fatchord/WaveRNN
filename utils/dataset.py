@@ -4,7 +4,7 @@ from torch.utils.data import Dataset, DataLoader
 from utils.dsp import *
 import hparams as hp
 
-def get_datasets(path, batch_size) :
+def get_datasets(path, batch_size=16) :
 
     with open(f'{path}dataset_ids.pkl', 'rb') as f:
         dataset_ids = pickle.load(f)

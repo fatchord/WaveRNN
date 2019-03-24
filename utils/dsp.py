@@ -1,22 +1,24 @@
+import math
 import numpy as np
 import librosa
 import hparams as hp
+from scipy.signal import lfilter
 
 
 def label_2_float(x, bits) :
     return 2 * x / (2**bits - 1.) - 1.
 
 
-def load_wav(filename, encode=True) :
-    x = librosa.load(filename, sr=hp.sample_rate)[0]
-    x = encode_16bits(x) if encode == True else x
-    return x
+def float_2_label(x, bits) :
+    return (x + 1.) * (2**bits - 1) / 2
 
 
-def save_wav(y, filename) :
-    if y.dtype != 'int16' :
-        y = encode_16bits(y)
-    librosa.output.write_wav(filename, y.astype(np.int16), sample_rate)
+def load_wav(path) :
+    return librosa.load(path, sr=hp.sample_rate)[0]
+
+
+def save_wav(x, path) :
+    librosa.output.write_wav(path, x.astype(np.float32), sr=hp.sample_rate)
 
 
 def split_signal(x) :
@@ -78,3 +80,26 @@ def melspectrogram(y):
 
 def stft(y):
     return librosa.stft(y=y, n_fft=hp.n_fft, hop_length=hp.hop_length, win_length=hp.win_length)
+
+
+def pre_emphasis(x):
+    return lfilter([1, -hparams.preemphasis], [1], x)
+
+
+def de_emphasis(x):
+    return lfilter([1], [1, -hparams.preemphasis], x)
+
+
+def encode_mu_law(x, mu) :
+    mu = mu - 1
+    fx = np.sign(x) * np.log(1 + mu * np.abs(x)) / np.log(1 + mu)
+    return np.floor((fx + 1) / 2 * mu + 0.5)
+
+
+def decode_mu_law(y, mu, from_labels=True) :
+    # TODO : get rid of log2 - makes no sense
+    if from_labels : y = label_2_float(y, math.log2(mu))
+    mu = mu - 1
+    x = np.sign(y) / mu * ((1 + mu) ** np.abs(y) - 1)
+    return x
+

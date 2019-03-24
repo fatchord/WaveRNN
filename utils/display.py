@@ -5,7 +5,7 @@ import sys
 
 
 def progbar(i, n, size=16):
-    done = int(i / n * size)
+    done = (i * size) // n
     bar = ''
     for i in range(size):
         bar += '█' if i <= done else '░'

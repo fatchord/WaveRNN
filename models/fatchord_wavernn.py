@@ -139,7 +139,7 @@ class Model(nn.Module):
         x = F.relu(self.fc2(x))
         return self.fc3(x)
 
-    def generate(self, mels, save_path, batched, target, overlap):
+    def generate(self, mels, save_path, batched, target, overlap, mu_law):
 
         self.eval()
         output = []
@@ -207,7 +207,10 @@ class Model(nn.Module):
         else:
             output = output[0]
 
-        librosa.output.write_wav(save_path, output.astype(np.float32), self.sample_rate)
+        if mu_law :
+            output = decode_mu_law(output, self.n_classes, False)
+
+        save_wav(output, save_path)
 
         self.train()
 
@@ -215,7 +218,8 @@ class Model(nn.Module):
 
     def gen_display(self, i, seq_len, b_size, start):
         gen_rate = int((i + 1) / (time.time() - start) * b_size / 1000)
-        msg = f'{i*b_size}/{seq_len*b_size} -- Batch Size: {b_size} -- Generation Rate: {gen_rate}kHz'
+        pbar = progbar(i, seq_len)
+        msg = f'| {pbar} {i*b_size}/{seq_len*b_size} | Batch Size: {b_size} | Gen Rate: {gen_rate}kHz | '
         stream(msg)
 
     def get_gru_cell(self, gru):
@@ -367,7 +371,7 @@ class Model(nn.Module):
             print('\nNew Training Session...\n')
             self.save(path)
         else:
-            print('\nContinuing Training...\n')
+            print(f'\nLoading Model: "{path}"\n')
             self.load(path)
 
     def load(self, path) :

@@ -7,7 +7,7 @@ class Paths :
         self.quant = f'{data_path}/quant/'
         self.mel = f'{data_path}/mel/'
         self.checkpoints = f'checkpoints/{model_id}/'
-        self.latest_weights = f'{self.checkpoints}/latest_weights.pyt'
+        self.latest_weights = f'{self.checkpoints}latest_weights.pyt'
         self.output = f'model_outputs/{model_id}/'
         self.step = f'{self.checkpoints}/step.npy'
         self.log = f'{self.checkpoints}log.txt'

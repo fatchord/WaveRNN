@@ -10,10 +10,9 @@ Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio 
 * Librosa 0.6.0
 
 
-
 # Training
 
-Edit **hparams.py** and point **wav_path** to your dataset 
+Edit **hparams.py**, point **wav_path** to your dataset and run: 
 
 > python preprocess.py
 
@@ -29,7 +28,7 @@ Once that's completed you can start training:
 
 Coming Soon
 
-# References
+# Acknowledgments
 
 * [Efficient Neural Audio Synthesis](https://arxiv.org/abs/1802.08435v1)
 * [keithito tacotron](https://github.com/keithito/tacotron)

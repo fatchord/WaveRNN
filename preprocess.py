@@ -6,8 +6,6 @@ from multiprocessing import Pool, cpu_count
 from utils.paths import Paths
 import pickle
 
-paths = Paths(hp.data_path, hp.model_id)
-
 
 def get_files(path, extension='.wav') :
     filenames = []
@@ -17,13 +15,13 @@ def get_files(path, extension='.wav') :
 
 
 def convert_file(path) :
-    wav = load_wav(path, encode=False)
+    wav = load_wav(path)
     mel = melspectrogram(wav)
-    quant = (wav + 1.) * (2**hp.bits - 1) / 2
+    if hp.mu_law :
+        quant = encode_mu_law(wav, mu=2 ** hp.bits)
+    else :
+        quant = float_2_label(wav, bits=hp.bits)
     return mel.astype(np.float32), quant.astype(np.int16)
-
-
-wav_files = get_files(hp.wav_path)
 
 
 def process_wav(path) :
@@ -34,16 +32,24 @@ def process_wav(path) :
     return id
 
 
-print('\nPreprocessing Dataset...')
-print(f'{len(wav_files)} wav files found in hparams.wav_path.\n')
+wav_files = get_files(hp.wav_path)
+paths = Paths(hp.data_path, hp.model_id)
+
+print(f'\n{len(wav_files)} wav files found in hparams.wav_path\n')
 
 if len(wav_files) == 0 :
-    print('Please point wav_path in hparams.py to your dataset')
+    print('Please point wav_path in hparams.py to your dataset\n')
 
 else :
 
+    print('+--------------------+--------------+---------+-----------------+')
+    print(f'| Sample Rate: {hp.sample_rate} | Mu Law: {hp.mu_law} | Bits: {hp.bits} | Hop Length: {hp.hop_length} |')
+    print('+--------------------+--------------+---------+-----------------+')
+
     pool = Pool(processes=cpu_count())
     dataset_ids = []
+
+    print(f'\nCPU count: {cpu_count()}\n')
 
     for i, id in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
         dataset_ids += [id]
@@ -54,6 +60,4 @@ else :
     with open(f'{paths.data}dataset_ids.pkl', 'wb') as f:
         pickle.dump(dataset_ids, f)
 
-
-
-    print('\n\nCompleted.\n')
+    print('\n\nCompleted. Read to run "python train.py". \n')

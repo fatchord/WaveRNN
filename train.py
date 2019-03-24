@@ -3,10 +3,19 @@ from torch import optim
 import torch.nn.functional as F
 from utils.display import stream
 from utils.dataset import get_datasets
-from utils.dsp import *
 import hparams as hp
 from models.fatchord_wavernn import Model
+from utils.generation import gen_testset
 from utils.paths import Paths
+import argparse
+
+parser = argparse.ArgumentParser(description='Train WaveRNN')
+parser.add_argument('--lr', '-l', type=float, default=hp.lr, help='[float] override hparams.py learning rate')
+parser.add_argument('--batch_size', '-b', type=int, default=hp.batch_size, help='[int] override hparams.py batch size')
+args = parser.parse_args()
+
+lr = args.lr
+batch_size = args.batch_size
 
 
 def train_loop(model, optimiser, train_set, test_set, lr):
@@ -41,34 +50,15 @@ def train_loop(model, optimiser, train_set, test_set, lr):
             k = step // 1000
 
             if step % hp.checkpoint_every == 0 :
-                generate(test_set, step)
+                gen_testset(model, test_set, hp.test_samples, hp.batched, hp.target, hp.overlap, paths.output)
                 model.checkpoint(paths.checkpoints)
 
-            msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.3} | {speed:#.2} steps/s | Step: {k}k | '
+            msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
             stream(msg)
 
         model.save(paths.latest_weights)
         model.log(paths.log, msg)
         print(' ')
-
-
-def generate(test_set, step, samples=5, batched=True, target=11_000, overlap=550):
-
-    k = step // 1000
-
-    for i, (m, x) in enumerate(test_set, 1):
-
-        if i > samples : break
-
-        print('\nGenerating: %i/%i' % (i, samples))
-
-        x = label_2_float(x[0].numpy(), hp.bits)
-        librosa.output.write_wav(f'{paths.output}{k}k_steps_{i}_target.wav', x, sr=hp.sample_rate)
-
-        batch_str = f'gen_batched_target{target}_overlap{overlap}' if batched else 'gen_NOT_BATCHED'
-        save_str = f'{paths.output}{k}k_steps_{i}_{batch_str}.wav'
-
-        _ = model.generate(m, save_str, batched, target, overlap)
 
 
 print('\nInitialising Model...\n')
@@ -78,7 +68,7 @@ model = Model(rnn_dims=hp.rnn_dims,
               bits=hp.bits,
               pad=hp.pad,
               upsample_factors=hp.upsample_factors,
-              feat_dims=hp.feat_dims,
+              feat_dims=hp.num_mels,
               compute_dims=hp.compute_dims,
               res_out_dims=hp.res_out_dims,
               res_blocks=hp.res_blocks,
@@ -91,6 +81,8 @@ model.restore(paths.latest_weights)
 
 optimiser = optim.Adam(model.parameters())
 
-train_set, test_set = get_datasets(paths.data, hp.batch_size)
+train_set, test_set = get_datasets(paths.data, batch_size)
 
-train_loop(model, optimiser, train_set, test_set, hp.lr)
+train_loop(model, optimiser, train_set, test_set, lr)
+
+print('Training Complete. To continue training increase total_steps in hparams.py\n')
