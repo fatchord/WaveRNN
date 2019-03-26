@@ -26,7 +26,7 @@ Once that's completed you can start training:
 
 # Pretrained Models
 
-Coming Soon
+[Available Here](https://ufile.io/wyy4s)
 
 # Acknowledgments
 
