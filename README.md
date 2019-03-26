@@ -21,9 +21,7 @@ Once that's completed you can start training:
 > python train.py
 
 # Samples
-| Generated | Ground Truth |
-| ------------- | ------------- |
-| <audio src="https://github.com/fatchord/WaveRNN/blob/master/assets/436k_steps_target.wav?raw=true" controls preload></audio>  | <audio src="https://github.com/fatchord/WaveRNN/blob/master/assets/436k_steps_gen.wav?raw=true" controls preload></audio>  |
+
 [Can be found here.](https://fatchord.github.io/model_outputs/)
 
 # Pretrained Models
