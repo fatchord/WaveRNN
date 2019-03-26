@@ -70,8 +70,6 @@ if __name__ == "__main__":
     overlap = args.overlap
     file = args.file
 
-    print('sdfsdfsdfsdfsdfsdf')
-
     print('\nInitialising Model...\n')
 
     model = Model(rnn_dims=hp.rnn_dims,

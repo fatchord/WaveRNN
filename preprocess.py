@@ -8,11 +8,12 @@ import pickle
 import argparse
 
 parser = argparse.ArgumentParser(description='Preprocessing for WaveRNN')
-parser.add_argument('--dataset', '-d', default=hp.wav_path, help='directly point to dataset path (overrides hparams.wav_path')
-parser.add_argument('--extension', '-e', default='.wav', help='file extension to search in hp.wav_path')
+parser.add_argument('--path', '-p', default=hp.wav_path, help='directly point to dataset path (overrides hparams.wav_path')
+parser.add_argument('--extension', '-e', default='.wav', help='file extension to search for in dataset folder')
 args = parser.parse_args()
 
 extension = args.extension
+path = args.path
 
 
 def get_files(path, extension='.wav') :
@@ -40,24 +41,24 @@ def process_wav(path) :
     return id
 
 
-wav_files = get_files(hp.wav_path, extension)
+wav_files = get_files(path, extension)
 paths = Paths(hp.data_path, hp.model_id)
 
-print(f'\n{len(wav_files)} wav files found in hparams.wav_path\n')
+print(f'\n{len(wav_files)} {extension[1:]} files found in "{path}"\n')
 
 if len(wav_files) == 0 :
     print('Please point wav_path in hparams.py to your dataset\n')
 
 else :
 
-    print('+--------------------+--------------+---------+-----------------+')
-    print(f'| Sample Rate: {hp.sample_rate} | Mu Law: {hp.mu_law} | Bits: {hp.bits} | Hop Length: {hp.hop_length} |')
-    print('+--------------------+--------------+---------+-----------------+')
+    simple_table([('Sample Rate', hp.sample_rate),
+                  ('Bit Depth', hp.bits),
+                  ('Mu Law', hp.mu_law),
+                  ('Hop Length', hp.hop_length),
+                  ('CPU Count', cpu_count())])
 
     pool = Pool(processes=cpu_count())
     dataset_ids = []
-
-    print(f'\nCPU count: {cpu_count()}\n')
 
     for i, id in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
         dataset_ids += [id]
@@ -68,4 +69,4 @@ else :
     with open(f'{paths.data}dataset_ids.pkl', 'wb') as f:
         pickle.dump(dataset_ids, f)
 
-    print('\n\nCompleted. Read to run "python train.py". \n')
+    print('\n\nCompleted. Ready to run "python train.py". \n')

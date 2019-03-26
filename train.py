@@ -1,7 +1,7 @@
 import time
 from torch import optim
 import torch.nn.functional as F
-from utils.display import stream
+from utils.display import stream, simple_table
 from utils.dataset import get_datasets
 import hparams as hp
 from models.fatchord_wavernn import Model
@@ -14,9 +14,8 @@ parser.add_argument('--lr', '-l', type=float, default=hp.lr, help='[float] overr
 parser.add_argument('--batch_size', '-b', type=int, default=hp.batch_size, help='[int] override hparams.py batch size')
 args = parser.parse_args()
 
-lr = args.lr
 batch_size = args.batch_size
-
+lr = args.lr
 
 def train_loop(model, optimiser, train_set, test_set, lr):
 
@@ -82,6 +81,12 @@ model.restore(paths.latest_weights)
 optimiser = optim.Adam(model.parameters())
 
 train_set, test_set = get_datasets(paths.data, batch_size)
+
+simple_table([('Steps Left', hp.total_steps - model.get_step()),
+              ('Batch Size', batch_size),
+              ('LR', lr),
+              ('Sequence Len', hp.seq_len),
+              ('Dataset Size', len(train_set))])
 
 train_loop(model, optimiser, train_set, test_set, lr)
 
