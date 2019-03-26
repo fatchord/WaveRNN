@@ -90,8 +90,7 @@ total_steps = 10_000_000 if force_train else hp.total_steps
 simple_table([('Steps Left', str((total_steps - model.get_step())//1000) + 'k'),
               ('Batch Size', batch_size),
               ('LR', lr),
-              ('Sequence Len', hp.seq_len),
-              ('Dataset Size', len(train_set))])
+              ('Sequence Len', hp.seq_len))])
 
 train_loop(model, optimiser, train_set, test_set, lr, total_steps)
 
