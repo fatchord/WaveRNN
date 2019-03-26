@@ -4,7 +4,7 @@ Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio 
 
 # Dependencies
 
-* Python 3.x
+* Python >= 3.6
 * Pytorch 1.0.1 with CUDA
 * Numpy 1.16.0
 * Librosa 0.6.0
