@@ -12,17 +12,20 @@ import argparse
 parser = argparse.ArgumentParser(description='Train WaveRNN')
 parser.add_argument('--lr', '-l', type=float, default=hp.lr, help='[float] override hparams.py learning rate')
 parser.add_argument('--batch_size', '-b', type=int, default=hp.batch_size, help='[int] override hparams.py batch size')
+parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train regardless of total_steps')
 args = parser.parse_args()
 
 batch_size = args.batch_size
+force_train = args.force_train
 lr = args.lr
 
-def train_loop(model, optimiser, train_set, test_set, lr):
+
+def train_loop(model, optimiser, train_set, test_set, lr, total_steps):
 
     for p in optimiser.param_groups: p['lr'] = lr
 
     total_iters = len(train_set)
-    epochs = (hp.total_steps - model.get_step()) // total_iters + 1
+    epochs = (total_steps - model.get_step()) // total_iters + 1
 
     for e in range(1, epochs + 1):
 
@@ -82,12 +85,14 @@ optimiser = optim.Adam(model.parameters())
 
 train_set, test_set = get_datasets(paths.data, batch_size)
 
-simple_table([('Steps Left', hp.total_steps - model.get_step()),
+total_steps = 10_000_000 if force_train else hp.total_steps
+
+simple_table([('Steps Left', str((total_steps - model.get_step())//1000) + 'k'),
               ('Batch Size', batch_size),
               ('LR', lr),
               ('Sequence Len', hp.seq_len),
               ('Dataset Size', len(train_set))])
 
-train_loop(model, optimiser, train_set, test_set, lr)
+train_loop(model, optimiser, train_set, test_set, lr, total_steps)
 
-print('Training Complete. To continue training increase total_steps in hparams.py\n')
+print('Training Complete. To continue training increase total_steps in hparams.py or use --force_train')
