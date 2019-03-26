@@ -5,7 +5,7 @@ from utils.display import stream
 from utils.dataset import get_datasets
 import hparams as hp
 from models.fatchord_wavernn import Model
-from utils.generation import gen_testset
+from generate import gen_testset
 from utils.paths import Paths
 import argparse
 
