@@ -24,12 +24,11 @@ def get_files(path, extension='.wav') :
 
 
 def convert_file(path) :
-    wav = load_wav(path)
-    mel = melspectrogram(wav)
-    if hp.mu_law :
-        quant = encode_mu_law(wav, mu=2 ** hp.bits)
-    else :
-        quant = float_2_label(wav, bits=hp.bits)
+    y = load_wav(path)
+    peak = np.abs(y).max()
+    if peak > 1.0 : y /= peak
+    mel = melspectrogram(y)
+    quant = encode_mu_law(y, mu=2**hp.bits) if hp.mu_law else float_2_label(y, bits=hp.bits)
     return mel.astype(np.float32), quant.astype(np.int16)
 
 
@@ -47,7 +46,9 @@ paths = Paths(hp.data_path, hp.model_id)
 print(f'\n{len(wav_files)} {extension[1:]} files found in "{path}"\n')
 
 if len(wav_files) == 0 :
-    print('Please point wav_path in hparams.py to your dataset\n')
+
+    print('Please point wav_path in hparams.py to your dataset,')
+    print('or use the --path option.\n')
 
 else :
 
