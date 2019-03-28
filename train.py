@@ -52,7 +52,7 @@ def train_loop(model, optimiser, train_set, test_set, lr, total_steps):
             k = step // 1000
 
             if step % hp.checkpoint_every == 0 :
-                gen_testset(model, test_set, hp.test_samples, hp.batched, hp.target, hp.overlap, paths.output)
+                gen_testset(model, test_set, hp.gen_at_checkpoint, hp.batched, hp.target, hp.overlap, paths.output)
                 model.checkpoint(paths.checkpoints)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
