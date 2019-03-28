@@ -1,8 +1,8 @@
 from utils.dataset import get_datasets
-# import hparams as hp
 from utils.dsp import *
 from models.fatchord_wavernn import Model
 from utils.paths import Paths
+from utils.display import simple_table
 import argparse
 
 
@@ -54,13 +54,15 @@ if __name__ == "__main__":
     parser.add_argument('--samples', '-s', type=int, help='[int] number of samples to generate')
     parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
-    parser.add_argument('--file', '-f', type=int, help='[string/path] for testing a wav outside dataset')
+    parser.add_argument('--file', '-f', type=str, help='[string/path] for testing a wav outside dataset')
+    parser.add_argument('--weights', '-w', type=str, help='[string/path] checkpoint file to load weights from')
 
     parser.set_defaults(batched=hp.batched)
     parser.set_defaults(samples=hp.gen_at_checkpoint)
     parser.set_defaults(target=hp.target)
     parser.set_defaults(overlap=hp.overlap)
     parser.set_defaults(file=None)
+    parser.set_defaults(weights=None)
 
     args = parser.parse_args()
 
@@ -86,7 +88,13 @@ if __name__ == "__main__":
 
     paths = Paths(hp.data_path, hp.model_id)
 
-    model.restore(paths.latest_weights)
+    restore_path = args.weights if args.weights else paths.latest_weights
+
+    model.restore(restore_path)
+
+    simple_table([('Generation Mode', 'Batched' if batched else 'Unbatched'),
+                  ('Target Samples', target if batched else 'N/A'),
+                  ('Overlap Samples', overlap if batched else 'N/A')])
 
     _, test_set = get_datasets(paths.data)
 
