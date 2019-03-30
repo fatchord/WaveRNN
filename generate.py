@@ -3,6 +3,7 @@ from utils.dsp import *
 from models.fatchord_wavernn import Model
 from utils.paths import Paths
 from utils.display import simple_table
+import torch
 import argparse
 
 
@@ -36,12 +37,13 @@ def gen_from_file(model, load_path, save_path, batched, target, overlap) :
     k = model.get_step() // 1000
 
     wav = load_wav(load_path)
-    save_wav(wav, f'_{save_path}__from_file__{k}k_steps_{i}_target.wav')
+    save_wav(wav, f'{save_path}__from_file__{k}k_steps_target.wav')
 
     mel = melspectrogram(wav)
+    mel = torch.tensor(mel).unsqueeze(0)
 
     batch_str = f'gen_batched_target{target}_overlap{overlap}' if batched else 'gen_NOT_BATCHED'
-    save_str = f'{save_path}__from_file__{k}k_steps_{i}_{batch_str}.wav'
+    save_str = f'{save_path}__from_file__{k}k_steps_{batch_str}.wav'
 
     _ = model.generate(mel, save_str, batched, target, overlap, hp.mu_law)
 
