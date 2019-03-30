@@ -26,7 +26,10 @@ Once that's completed you can start training:
 
 # Pretrained Models
 
-[Available Here](https://ufile.io/wyy4s)
+Currently there are two pretrained models available in the /pretrained/ folder':
+
+* Single-speaker (LJ Speech) - 9bit mulaw - trained to ~400k steps
+* Multi-speaker (Librispeech) - 9bit mulaw - trained to ~900k steps
 
 # Acknowledgments
 
