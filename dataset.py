@@ -53,7 +53,7 @@ class MyDataset(Dataset):
             coarse = np.stack(coarse).astype(np.float32)
             coarse = torch.FloatTensor(coarse)
             x_input = coarse[:, :seq_len]
-        elif type(self.mode) is int::
+        elif type(self.mode) is int:
             coarse = np.stack(coarse).astype(np.int64)
             coarse = torch.LongTensor(coarse)
             x_input = 2 * coarse[:, :seq_len].float() / (2 ** self.mode - 1.0) - 1.0

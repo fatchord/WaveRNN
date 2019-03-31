@@ -290,7 +290,7 @@ if __name__ == "__main__":
 
     global ap
     ap = AudioProcessor(**CONFIG.audio)
-    bits = CONFIG.audio["bits"]
+    mode = CONFIG.mode
 
     # setup output paths and read configs
     _ = os.path.dirname(os.path.realpath(__file__))
