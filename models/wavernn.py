@@ -4,7 +4,7 @@ import torch.nn as nn
 import numpy as np
 import torch.nn.functional as F
 import time
-from .losses import sample_from_gaussian, sample_from_discretized_mix_logistic
+from utils.distribution import sample_from_gaussian, sample_from_discretized_mix_logistic
 
 
 def stream(string, variables) :

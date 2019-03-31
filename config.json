@@ -41,6 +41,7 @@
     "num_workers": 8,
     "mel_len": 8,
     "pad": 2,
+    "upsample_factors": [5, 5, 11],
 
     "data_path": "/home/erogol/Data/LJSpeech-1.1/wavernn_4241/",
     "output_path": "/media/erogol/data_ssd/Data/models/wavernn/"
