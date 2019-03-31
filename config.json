@@ -4,7 +4,6 @@
 
     "audio":{
         "audio_processor": "audio",     // to use dictate different audio processors, if available.
-        "bits": 10,
         // Audio processing parameters
         "num_mels": 80,         // size of the mel spec frame. 
         "num_freq": 1025,       // number of stft frequency levels. Size of the linear spectogram frame.
@@ -42,6 +41,7 @@
     "mel_len": 8,
     "pad": 2,
     "upsample_factors": [5, 5, 11],
+    "mode": "mold",      // model with gaussian (gaus), misture of logistic dist (mold). or raw bit output (# bits).
 
     "data_path": "/home/erogol/Data/LJSpeech-1.1/wavernn_4241/",
     "output_path": "/media/erogol/data_ssd/Data/models/wavernn/"

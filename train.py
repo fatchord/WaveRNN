@@ -40,7 +40,7 @@ def setup_loader(is_val=False):
         DATA_PATH,
         CONFIG.mel_len,
         ap.hop_length,
-        ap.bits,
+        CONFIG.mode,
         CONFIG.pad,
         ap,
         is_val,
@@ -58,7 +58,7 @@ def setup_loader(is_val=False):
     return loader
 
 
-def train(model, optimizer, criterion, scheduler, epochs, batch_size, classes, step, lr, args):
+def train(model, optimizer, criterion, scheduler, epochs, batch_size, step, lr, args):
     global CONFIG
     global train_ids
     # create train loader
@@ -155,25 +155,6 @@ def evaluate(model, criterion, batch_size):
         print(" | > Validation Loss: {}".format(avg_val_loss), flush=True)
 
 
-def generate(step, samples=1, mulaw=False):
-    global output
-    k = step // 1000
-    test_mels = [np.load(f"{DATA_PATH}mel/{test_id}.npy")]
-    ground_truth = [np.load(f"{DATA_PATH}quant/{test_id}.npy")]
-    for i, (gt, mel) in enumerate(zip(ground_truth, test_mels)):
-        print("\nGenerating: %i/%i" % (i + 1, samples))
-        gt = 2 * gt.astype(np.float32) / (2 ** bits - 1.0) - 1.0
-        librosa.output.write_wav(
-            f"{GEN_PATH}{k}k_steps_{i}_target.wav", gt, sr=ap.sample_rate
-        )
-        output = model.generate(mel)
-        if mulaw:
-            output = ap.mulaw_decoder(output, 2 ** bits)
-        librosa.output.write_wav(
-            f"{GEN_PATH}{k}k_steps_{i}_generated.wav", output, ap.sample_rate
-        )
-
-
 def main(args):
     global train_ids
     global test_ids
@@ -192,7 +173,7 @@ def main(args):
     model = Model(
         rnn_dims=512,
         fc_dims=512,
-        bits=ap.bits,
+        mode=CONFIG.mode,
         pad=CONFIG.pad,
         upsample_factors=CONFIG.upsample_factors,
         feat_dims=80,
@@ -259,7 +240,6 @@ def main(args):
         scheduler,
         epochs=CONFIG.epochs,
         batch_size=CONFIG.batch_size,
-        classes=2 ** bits,
         step=step,
         lr=CONFIG.lr * num_gpus,
         args=args,

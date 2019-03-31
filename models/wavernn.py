@@ -91,10 +91,11 @@ class UpsampleNetwork(nn.Module) :
 
 
 class Model(nn.Module) :
-    def __init__(self, rnn_dims, fc_dims, bits, pad, upsample_factors,
+    def __init__(self, rnn_dims, fc_dims, mode, pad, upsample_factors,
                  feat_dims, compute_dims, res_out_dims, res_blocks,
                  hop_length, sample_rate):
         super().__init__()
+        self.mode = mode
         self.pad = pad
         self.n_classes = 3 * 10
         self.rnn_dims = rnn_dims
@@ -194,14 +195,15 @@ class Model(nn.Module) :
                 x = F.relu(self.fc2(x))
                 
                 logits = self.fc3(x)
-                sample = sample_from_discretized_mix_logistic(logits.unsqueeze(0).transpose(1, 2))
-                
-                output.append(sample.view(-1))
-                # x = torch.FloatTensor([[sample]]).cuda()
-                x = sample.transpose(0, 1).cuda()
+                if self.mode == 'mold':
+                    sample = sample_from_discretized_mix_logistic(logits.unsqueeze(0).transpose(1, 2))
+                    output.append(sample.view(-1))
+                    # x = torch.FloatTensor([[sample]]).cuda()
+                    x = sample.transpose(0, 1).cuda()
+                else:
+                    raise RuntimeError("Unknown model mode value - ", self.mode)
                 
                 if i % 100 == 0 : self.gen_display(i, seq_len, b_size, start)
-                    
         
         output = torch.stack(output).transpose(0, 1)
         output = output.cpu().numpy()
@@ -212,10 +214,7 @@ class Model(nn.Module) :
         else :
             output = output[0]
             
-        # librosa.output.write_wav(save_path, output.astype(np.float32), self.sample_rate)
-        
         self.train()
-        
         return output
     
     def gen_display(self, i, seq_len, b_size, start) :
