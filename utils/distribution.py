@@ -35,20 +35,9 @@ def log_sum_exp(x):
     return m + torch.log(torch.sum(torch.exp(x - m2), dim=axis))
 
 
+# It is adapted from https://github.com/r9y9/wavenet_vocoder/blob/master/wavenet_vocoder/mixture.py
 def discretized_mix_logistic_loss(y_hat, y, num_classes=65536,
                                   log_scale_min=None, reduce=True):
-    """Discretized mixture of logistic distributions loss
-    Note that it is assumed that input is scaled to [-1, 1].
-    Args:
-        y_hat (Tensor): Predicted output (B x T x C)
-        y (Tensor): Target (B x T x 1).
-        num_classes (int): Number of classes
-        log_scale_min (float): Log scale minimum value
-        reduce (bool): If True, the losses are averaged or summed for each
-          minibatch.
-    Returns
-        Tensor: loss
-    """
     if log_scale_min is None:
         log_scale_min = float(np.log(1e-14))
     y_hat = y_hat.permute(0,2,1)

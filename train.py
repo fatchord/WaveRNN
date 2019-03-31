@@ -16,16 +16,12 @@ from torch.utils.data.distributed import DistributedSampler
 
 from dataset import MyDataset
 from distribute import *
-from models.losses import gaussian_loss, discretized_mix_logistic_loss
 from models.wavernn import Model
 from utils.audio import AudioProcessor
 from utils.display import *
-from utils.generic_utils import (count_parameters, load_config,
-                                 remove_experiment_folder, save_checkpoint,
-                                 check_update)
-
-sys.path.insert(0, "/home/erogol/projects/")
-
+from utils.distribution import discretized_mix_logistic_loss, gaussian_loss
+from utils.generic_utils import (check_update, count_parameters, load_config,
+                                 remove_experiment_folder, save_checkpoint)
 
 
 torch.backends.cudnn.enabled = True
