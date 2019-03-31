@@ -49,11 +49,14 @@ class MyDataset(Dataset):
             for i, x in enumerate(batch)
         ]
         mels = np.stack(mels).astype(np.float32)
-        coarse = np.stack(coarse).astype(np.float32)
-
-        mels = torch.FloatTensor(mels)
-        coarse = torch.FloatTensor(coarse)
-
-        x_input = coarse[:, :seq_len]
+        if self.mode in ['gauss', 'mold']:
+            coarse = np.stack(coarse).astype(np.float32)
+            coarse = torch.FloatTensor(coarse)
+            x_input = coarse[:, :seq_len]
+        elif type(self.mode) is int::
+            coarse = np.stack(coarse).astype(np.int64)
+            coarse = torch.LongTensor(coarse)
+            x_input = 2 * coarse[:, :seq_len].float() / (2 ** self.mode - 1.0) - 1.0
         y_coarse = coarse[:, 1:]
+        mels = torch.FloatTensor(mels)
         return x_input, mels, y_coarse
