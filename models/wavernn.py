@@ -197,7 +197,8 @@ class Model(nn.Module) :
                 sample = sample_from_discretized_mix_logistic(logits.unsqueeze(0).transpose(1, 2))
                 
                 output.append(sample.view(-1))
-                x = torch.FloatTensor([[sample]]).cuda()
+                # x = torch.FloatTensor([[sample]]).cuda()
+                x = sample.transpose(0, 1).cuda()
                 
                 if i % 100 == 0 : self.gen_display(i, seq_len, b_size, start)
                     
