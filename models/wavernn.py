@@ -195,6 +195,7 @@ class Model(nn.Module) :
                 x = F.relu(self.fc2(x))
                 
                 logits = self.fc3(x)
+                # TODO: implement other modes
                 if self.mode == 'mold':
                     sample = sample_from_discretized_mix_logistic(logits.unsqueeze(0).transpose(1, 2))
                     output.append(sample.view(-1))
