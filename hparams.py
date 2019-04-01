@@ -16,7 +16,7 @@ min_level_db = -100
 ref_level_db = 20
 bits = 9                        # bit depth of signal
 mu_law = True                   # Recommended to suppress noise
-
+peak_norm = False
 
 # MODEL
 upsample_factors = (5, 5, 11)   # NB - this needs to correctly factorise hop_length - triple-check if modifying

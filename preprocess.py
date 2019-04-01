@@ -26,7 +26,8 @@ def get_files(path, extension='.wav') :
 def convert_file(path) :
     y = load_wav(path)
     peak = np.abs(y).max()
-    if peak > 1.0 : y /= peak
+    if hp.peak_norm or peak > 1.0:
+        y /= peak
     mel = melspectrogram(y)
     quant = encode_mu_law(y, mu=2**hp.bits) if hp.mu_law else float_2_label(y, bits=hp.bits)
     return mel.astype(np.float32), quant.astype(np.int16)
@@ -35,8 +36,8 @@ def convert_file(path) :
 def process_wav(path) :
     id = path.split('/')[-1][:-4]
     m, x = convert_file(path)
-    np.save(f'{paths.mel}{id}.npy', m)
-    np.save(f'{paths.quant}{id}.npy', x)
+    np.save(f'{paths.mel}{id}.npy', m, allow_pickle=False)
+    np.save(f'{paths.quant}{id}.npy', x, allow_pickle=False)
     return id
 
 
