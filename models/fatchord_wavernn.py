@@ -368,10 +368,10 @@ class Model(nn.Module):
 
     def restore(self, path):
         if not os.path.exists(path) :
-            print('\nNew Training Session...\n')
+            print('\nNew WaveRNN Training Session...\n')
             self.save(path)
         else:
-            print(f'\nLoading Model: "{path}"\n')
+            print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
 
     def load(self, path) :

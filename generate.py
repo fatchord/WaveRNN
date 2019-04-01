@@ -60,10 +60,10 @@ if __name__ == "__main__":
     parser.add_argument('--file', '-f', type=str, help='[string/path] for testing a wav outside dataset')
     parser.add_argument('--weights', '-w', type=str, help='[string/path] checkpoint file to load weights from')
 
-    parser.set_defaults(batched=hp.batched)
-    parser.set_defaults(samples=hp.gen_at_checkpoint)
-    parser.set_defaults(target=hp.target)
-    parser.set_defaults(overlap=hp.overlap)
+    parser.set_defaults(batched=hp.voc_gen_batched)
+    parser.set_defaults(samples=hp.voc_gen_at_checkpoint)
+    parser.set_defaults(target=hp.voc_target)
+    parser.set_defaults(overlap=hp.voc_overlap)
     parser.set_defaults(file=None)
     parser.set_defaults(weights=None)
 
@@ -77,21 +77,21 @@ if __name__ == "__main__":
 
     print('\nInitialising Model...\n')
 
-    model = Model(rnn_dims=hp.rnn_dims,
-                  fc_dims=hp.fc_dims,
+    model = Model(rnn_dims=hp.voc_rnn_dims,
+                  fc_dims=hp.voc_fc_dims,
                   bits=hp.bits,
-                  pad=hp.pad,
-                  upsample_factors=hp.upsample_factors,
+                  pad=hp.voc_pad,
+                  upsample_factors=hp.voc_upsample_factors,
                   feat_dims=hp.num_mels,
-                  compute_dims=hp.compute_dims,
-                  res_out_dims=hp.res_out_dims,
-                  res_blocks=hp.res_blocks,
+                  compute_dims=hp.voc_compute_dims,
+                  res_out_dims=hp.voc_res_out_dims,
+                  res_blocks=hp.voc_res_blocks,
                   hop_length=hp.hop_length,
                   sample_rate=hp.sample_rate).cuda()
 
     paths = Paths(hp.data_path, hp.model_id)
 
-    restore_path = args.weights if args.weights else paths.latest_weights
+    restore_path = args.weights if args.weights else paths.voc_latest_weights
 
     model.restore(restore_path)
 
@@ -102,8 +102,8 @@ if __name__ == "__main__":
     _, test_set = get_datasets(paths.data)
 
     if file :
-        gen_from_file(model, file, paths.output, batched, target, overlap)
+        gen_from_file(model, file, paths.voc_output, batched, target, overlap)
     else :
-        gen_testset(model, test_set, samples, batched, target, overlap, paths.output)
+        gen_testset(model, test_set, samples, batched, target, overlap, paths.voc_output)
 
     print('\n\nExiting...\n')

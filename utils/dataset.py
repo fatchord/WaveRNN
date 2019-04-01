@@ -9,8 +9,8 @@ def get_datasets(path, batch_size=16) :
     with open(f'{path}dataset_ids.pkl', 'rb') as f:
         dataset_ids = pickle.load(f)
 
-    test_ids = dataset_ids[-hp.test_samples:]
-    train_ids = dataset_ids[:-hp.test_samples]
+    test_ids = dataset_ids[-hp.voc_test_samples:]
+    train_ids = dataset_ids[:-hp.voc_test_samples]
 
     train_dataset = AudiobookDataset(train_ids, path)
     test_dataset = AudiobookDataset(test_ids, path)
@@ -48,14 +48,14 @@ class AudiobookDataset(Dataset):
 
 
 def collate(batch):
-    mel_win = hp.seq_len // hp.hop_length + 2 * hp.pad
-    max_offsets = [x[0].shape[-1] - (mel_win + 2 * hp.pad) for x in batch]
+    mel_win = hp.voc_seq_len // hp.hop_length + 2 * hp.voc_pad
+    max_offsets = [x[0].shape[-1] - (mel_win + 2 * hp.voc_pad) for x in batch]
     mel_offsets = [np.random.randint(0, offset) for offset in max_offsets]
-    sig_offsets = [(offset + hp.pad) * hp.hop_length for offset in mel_offsets]
+    sig_offsets = [(offset + hp.voc_pad) * hp.hop_length for offset in mel_offsets]
 
     mels = [x[0][:, mel_offsets[i]:mel_offsets[i] + mel_win] for i, x in enumerate(batch)]
 
-    labels = [x[1][sig_offsets[i]:sig_offsets[i] + hp.seq_len + 1] for i, x in enumerate(batch)]
+    labels = [x[1][sig_offsets[i]:sig_offsets[i] + hp.voc_seq_len + 1] for i, x in enumerate(batch)]
 
     mels = np.stack(mels).astype(np.float32)
     labels = np.stack(labels).astype(np.int64)
@@ -63,7 +63,7 @@ def collate(batch):
     mels = torch.FloatTensor(mels)
     labels = torch.LongTensor(labels)
 
-    x = label_2_float(labels[:, :hp.seq_len].float(), hp.bits)
+    x = label_2_float(labels[:, :hp.voc_seq_len].float(), hp.bits)
 
     y = labels[:, 1:]
 

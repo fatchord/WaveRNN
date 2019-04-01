@@ -10,8 +10,8 @@ from utils.paths import Paths
 import argparse
 
 parser = argparse.ArgumentParser(description='Train WaveRNN')
-parser.add_argument('--lr', '-l', type=float, default=hp.lr, help='[float] override hparams.py learning rate')
-parser.add_argument('--batch_size', '-b', type=int, default=hp.batch_size, help='[int] override hparams.py batch size')
+parser.add_argument('--lr', '-l', type=float, default=hp.voc_lr, help='[float] override hparams.py learning rate')
+parser.add_argument('--batch_size', '-b', type=int, default=hp.voc_batch_size, help='[int] override hparams.py batch size')
 parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train regardless of total_steps')
 args = parser.parse_args()
 
@@ -51,47 +51,48 @@ def train_loop(model, optimiser, train_set, test_set, lr, total_steps):
             step = model.get_step()
             k = step // 1000
 
-            if step % hp.checkpoint_every == 0 :
-                gen_testset(model, test_set, hp.gen_at_checkpoint, hp.batched, hp.target, hp.overlap, paths.output)
-                model.checkpoint(paths.checkpoints)
+            if step % hp.voc_checkpoint_every == 0 :
+                gen_testset(model, test_set, hp.voc_gen_at_checkpoint, hp.voc_gen_batched, hp.voc_target, hp.voc_overlap, paths.voc_output)
+                model.checkpoint(paths.voc_checkpoints)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
             stream(msg)
 
-        model.save(paths.latest_weights)
-        model.log(paths.log, msg)
+        model.save(paths.voc_latest_weights)
+        model.log(paths.voc_log, msg)
         print(' ')
 
 
 print('\nInitialising Model...\n')
 
-model = Model(rnn_dims=hp.rnn_dims,
-              fc_dims=hp.fc_dims,
+model = Model(rnn_dims=hp.voc_rnn_dims,
+              fc_dims=hp.voc_fc_dims,
               bits=hp.bits,
-              pad=hp.pad,
-              upsample_factors=hp.upsample_factors,
+              pad=hp.voc_pad,
+              upsample_factors=hp.voc_upsample_factors,
               feat_dims=hp.num_mels,
-              compute_dims=hp.compute_dims,
-              res_out_dims=hp.res_out_dims,
-              res_blocks=hp.res_blocks,
+              compute_dims=hp.voc_compute_dims,
+              res_out_dims=hp.voc_res_out_dims,
+              res_blocks=hp.voc_res_blocks,
               hop_length=hp.hop_length,
               sample_rate=hp.sample_rate).cuda()
 
 paths = Paths(hp.data_path, hp.model_id)
 
-model.restore(paths.latest_weights)
+model.restore(paths.voc_latest_weights)
 
 optimiser = optim.Adam(model.parameters())
 
 train_set, test_set = get_datasets(paths.data, batch_size)
 
-total_steps = 10_000_000 if force_train else hp.total_steps
+total_steps = 10_000_000 if force_train else hp.voc_total_steps
 
-simple_table([('Steps Left', str((total_steps - model.get_step())//1000) + 'k'),
+simple_table([('Steps Remaining', str((total_steps - model.get_step())//1000) + 'k'),
               ('Batch Size', batch_size),
-              ('LR', lr),
-              ('Sequence Len', hp.seq_len)])
+              ('Learning Rate', lr),
+              ('Sequence Length', hp.voc_seq_len)])
 
 train_loop(model, optimiser, train_set, test_set, lr, total_steps)
 
-print('Training Complete. To continue training increase total_steps in hparams.py or use --force_train')
+print('Training Complete.')
+print('To continue training increase voc_total_steps in hparams.py or use --force_train')
