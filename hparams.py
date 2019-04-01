@@ -17,7 +17,7 @@ min_level_db = -100
 ref_level_db = 20
 bits = 9                        # bit depth of signal
 mu_law = True                   # Recommended to suppress noise
-peak_norm = False
+peak_norm = False               # Normalise to the peak of each wav file
 
 #------------------------------------------------------------------------------------------------------------------#
 

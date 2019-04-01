@@ -52,9 +52,9 @@ def gen_from_file(model, load_path, save_path, batched, target, overlap) :
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Generate WaveRNN Samples')
-    parser.add_argument('--batched', '-b', dest='batched', action='store_true')
-    parser.add_argument('--unbatched', '-u', dest='batched', action='store_false')
-    parser.add_argument('--samples', '-s', type=int, help='[int] number of samples to generate')
+    parser.add_argument('--batched', '-b', dest='batched', action='store_true', help='Fast Batched Generation')
+    parser.add_argument('--unbatched', '-u', dest='batched', action='store_false', help='Slow Unbatched Generation')
+    parser.add_argument('--samples', '-s', type=int, help='[int] number of utterances to generate')
     parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     parser.add_argument('--file', '-f', type=str, help='[string/path] for testing a wav outside dataset')
