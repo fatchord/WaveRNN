@@ -33,7 +33,7 @@ def get_vocoder_datasets(path, batch_size=16) :
     test_dataset = VocoderDataset(test_ids, path)
 
     train_set = DataLoader(train_dataset,
-                           collate_fn=collate,
+                           collate_fn=collate_vocoder,
                            batch_size=batch_size,
                            num_workers=2,
                            shuffle=True,
@@ -69,6 +69,52 @@ def collate_vocoder(batch):
     y = labels[:, 1:]
 
     return x, y, mels
+
+
+class TTSDataset(Dataset):
+    def __init__(self, dataset_ids):
+        self.metadata = dataset_ids
+
+    def __getitem__(self, index):
+        file = self.metadata[index]
+        mel = np.load(f'{DATA_PATH}mel/{file}.npy')
+        return x, mel, file
+
+    def __len__(self):
+        return len(self.metadata)
+
+
+def pad1d(x, max_len) :
+    return np.pad(x, (0, max_len - len(x)), mode='constant')
+
+
+def pad2d(x, max_len) :
+    return np.pad(x, ((0, 0), (0, max_len - x.shape[-1])), mode='constant')
+
+
+def collate_tts(batch):
+    x_lens = [len(x[0]) for x in batch]
+    max_x_len = max(x_lens)
+
+    chars = [pad1d(x[0], max_x_len) for x in batch]
+    chars = np.stack(chars)
+
+    spec_lens = [x[1].shape[-1] for x in batch]
+    max_spec_len = max(spec_lens) + 1
+    if max_spec_len % r != 0:
+        max_spec_len += r - max_spec_len % r
+
+    mel = [pad2d(x[1], max_spec_len) for x in batch]
+    mel = np.stack(mel)
+
+    files = [x[2] for x in batch]
+
+    chars = torch.LongTensor(chars)
+    mel = torch.FloatTensor(mel)
+
+    # scale spectrograms to -4 <--> 4
+    mel = (mel * 8.) - 4.
+    return chars, mel, files
 
 
 class BinnedLengthSampler(Sampler):
