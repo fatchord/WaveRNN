@@ -10,7 +10,7 @@ from utils.paths import Paths
 import argparse
 
 
-def train_loop(model, optimiser, train_set, test_set, lr, total_steps):
+def voc_train_loop(model, optimiser, train_set, test_set, lr, total_steps):
 
     for p in optimiser.param_groups: p['lr'] = lr
 
@@ -42,8 +42,8 @@ def train_loop(model, optimiser, train_set, test_set, lr, total_steps):
             k = step // 1000
 
             if step % hp.voc_checkpoint_every == 0 :
-                gen_options = [hp.voc_gen_at_checkpoint, hp.voc_gen_batched, hp.voc_target, hp.voc_overlap]
-                gen_testset(model, test_set, *gen_options, paths.voc_output)
+                gen_testset(model, test_set, hp.voc_gen_at_checkpoint, hp.voc_gen_batched,
+                            hp.voc_target, hp.voc_overlap, paths.voc_output)
                 model.checkpoint(paths.voc_checkpoints)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
@@ -59,7 +59,7 @@ if __name__ == "__main__" :
     parser = argparse.ArgumentParser(description='Train WaveRNN')
     parser.add_argument('--lr', '-l', type=float,  help='[float] override hparams.py learning rate')
     parser.add_argument('--batch_size', '-b', type=int, help='[int] override hparams.py batch size')
-    parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train regardless of total_steps')
+    parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
     parser.set_defaults(lr=hp.voc_lr)
     parser.set_defaults(batch_size=hp.voc_batch_size)
     args = parser.parse_args()
@@ -97,7 +97,7 @@ if __name__ == "__main__" :
                   ('Learning Rate', lr),
                   ('Sequence Length', hp.voc_seq_len)])
 
-    train_loop(model, optimiser, train_set, test_set, lr, total_steps)
+    voc_train_loop(model, optimiser, train_set, test_set, lr, total_steps)
 
     print('Training Complete.')
     print('To continue training increase voc_total_steps in hparams.py or use --force_train')
