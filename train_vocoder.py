@@ -1,8 +1,9 @@
 import time
+import numpy as np
 from torch import optim
 import torch.nn.functional as F
 from utils.display import stream, simple_table
-from utils.dataset import get_datasets
+from utils.dataset import get_vocoder_datasets
 import hparams as hp
 from models.fatchord_wavernn import Model
 from generate import gen_testset
@@ -56,7 +57,8 @@ def voc_train_loop(model, optimiser, train_set, test_set, lr, total_steps):
 
 if __name__ == "__main__" :
 
-    parser = argparse.ArgumentParser(description='Train WaveRNN')
+    # Parse Arguments
+    parser = argparse.ArgumentParser(description='Train WaveRNN Vocoder')
     parser.add_argument('--lr', '-l', type=float,  help='[float] override hparams.py learning rate')
     parser.add_argument('--batch_size', '-b', type=int, help='[int] override hparams.py batch size')
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
@@ -70,34 +72,38 @@ if __name__ == "__main__" :
 
     print('\nInitialising Model...\n')
 
-    model = Model(rnn_dims=hp.voc_rnn_dims,
-                  fc_dims=hp.voc_fc_dims,
-                  bits=hp.bits,
-                  pad=hp.voc_pad,
-                  upsample_factors=hp.voc_upsample_factors,
-                  feat_dims=hp.num_mels,
-                  compute_dims=hp.voc_compute_dims,
-                  res_out_dims=hp.voc_res_out_dims,
-                  res_blocks=hp.voc_res_blocks,
-                  hop_length=hp.hop_length,
-                  sample_rate=hp.sample_rate).cuda()
+    # Instantiate WaveRNN Model
+    voc_model = Model(rnn_dims=hp.voc_rnn_dims,
+                      fc_dims=hp.voc_fc_dims,
+                      bits=hp.bits,
+                      pad=hp.voc_pad,
+                      upsample_factors=hp.voc_upsample_factors,
+                      feat_dims=hp.num_mels,
+                      compute_dims=hp.voc_compute_dims,
+                      res_out_dims=hp.voc_res_out_dims,
+                      res_blocks=hp.voc_res_blocks,
+                      hop_length=hp.hop_length,
+                      sample_rate=hp.sample_rate).cuda()
+
+    # Check to make sure the hop length is correctly factorised
+    assert np.cumprod(hp.voc_upsample_factors)[-1] == hp.hop_length
 
     paths = Paths(hp.data_path, hp.model_id)
 
-    model.restore(paths.voc_latest_weights)
+    voc_model.restore(paths.voc_latest_weights)
 
-    optimiser = optim.Adam(model.parameters())
+    optimiser = optim.Adam(voc_model.parameters())
 
-    train_set, test_set = get_datasets(paths.data, batch_size)
+    train_set, test_set = get_vocoder_datasets(paths.data, batch_size)
 
     total_steps = 10_000_000 if force_train else hp.voc_total_steps
 
-    simple_table([('Steps Remaining', str((total_steps - model.get_step())//1000) + 'k'),
+    simple_table([('Steps Remaining', str((total_steps - voc_model.get_step())//1000) + 'k'),
                   ('Batch Size', batch_size),
                   ('Learning Rate', lr),
                   ('Sequence Length', hp.voc_seq_len)])
 
-    voc_train_loop(model, optimiser, train_set, test_set, lr, total_steps)
+    voc_train_loop(voc_model, optimiser, train_set, test_set, lr, total_steps)
 
     print('Training Complete.')
     print('To continue training increase voc_total_steps in hparams.py or use --force_train')
