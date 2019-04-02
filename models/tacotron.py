@@ -14,7 +14,7 @@ class HighwayNetwork(nn.Module) :
     def forward(self, x) :
         x1 = self.W1(x)
         x2 = self.W2(x)
-        g = F.sigmoid(x2)
+        g = torch.sigmoid(x2)
         y = g * F.relu(x1) + (1. - g) * x
         return y
     
@@ -140,7 +140,7 @@ class Attention(nn.Module) :
         query_proj = self.W(query).unsqueeze(1)
         
         # Compute the scores 
-        u = self.v(F.tanh(encoder_seq_proj + query_proj))
+        u = self.v(torch.tanh(encoder_seq_proj + query_proj))
         scores = F.softmax(u, dim=1)
 
         return scores.transpose(1, 2)
@@ -216,7 +216,7 @@ class Decoder(nn.Module) :
         return mels, scores, hidden_states, cell_states, context_vec
     
     
-class TacotronOne(nn.Module) :
+class Tacotron(nn.Module) :
     def __init__(self, r, embed_dims, num_chars, encoder_dims, decoder_dims, n_mels, fft_bins, postnet_dims,
                  encoder_K, lstm_dims, postnet_K, num_highways, dropout) :
         super().__init__()
@@ -230,12 +230,16 @@ class TacotronOne(nn.Module) :
         self.decoder = Decoder(r, n_mels, decoder_dims, lstm_dims)
         self.postnet = CBHG(postnet_K, n_mels, postnet_dims, [256, 80], num_highways)
         self.post_proj = nn.Linear(postnet_dims * 2, fft_bins, bias=False)
-        
+
         self.init_model()
         self.num_params()
-        
+
+        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
+
     def forward(self, x, m, generate_gta=False) :
-        
+
+        self.step += 1
+
         if generate_gta :
             self.encoder.eval()
             self.postnet.eval()
@@ -363,7 +367,7 @@ class TacotronOne(nn.Module) :
     
     def init_model(self) :
         for p in self.parameters():
-            if p.dim() > 1: nn.init.xavier_uniform_(p)
+            if p.dim() > 1 : nn.init.xavier_uniform_(p)
 
     def get_step(self):
         return self.step.data.item()
@@ -381,7 +385,7 @@ class TacotronOne(nn.Module) :
             print('\nNew Tacotron Training Session...\n')
             self.save(path)
         else:
-            print(f'\nLoading Model: "{path}"\n')
+            print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
 
     def load(self, path):

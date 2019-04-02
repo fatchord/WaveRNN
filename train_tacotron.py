@@ -1,35 +1,33 @@
 import time
-import numpy as np
+import torch
 from torch import optim
 import torch.nn.functional as F
-from utils.display import stream, simple_table
-from utils.dataset import get_vocoder_datasets
+from utils.display import stream, simple_table, save_attention
+from utils.dataset import get_tts_dataset
 import hparams as hp
 from utils.text.symbols import symbols
 from utils.paths import Paths
+from models.tacotron import Tacotron
 import argparse
 
 
-def tts_train_loop(model, optimizer, batch_size, epochs, lr, step, clip_grad=1.0):
+def tts_train_loop(model, optimizer, train_set, lr, total_steps):
 
     for p in optimizer.param_groups: p['lr'] = lr
+
+    total_iters = len(train_set)
+    epochs = (total_steps - model.get_step()) // total_iters + 1
 
     for e in range(epochs):
 
         start = time.time()
         running_loss = 0
 
-        sampler = BinnedLength(frame_lengths, batch_size=batch_size, bin_size=bin_size)
-
-        loader = DataLoader(dataset, collate_fn=collate, batch_size=batch_size,
-                            sampler=sampler, num_workers=1, pin_memory=True)
-
-        for i, (x, m, _) in enumerate(loader):
+        for i, (x, m) in enumerate(train_set, 1):
 
             optimizer.zero_grad()
 
-            x = Variable(x).cuda()
-            m = Variable(m).cuda()
+            x, m = x.cuda(), m.cuda()
 
             m1_hat, m2_hat, attention = model(x, m)
 
@@ -41,14 +39,30 @@ def tts_train_loop(model, optimizer, batch_size, epochs, lr, step, clip_grad=1.0
             running_loss += loss.item()
 
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), clip_grad)
+            if hp.tts_clip_grad_norm :
+                torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
+
             optimizer.step()
 
-            step += 1
+            step = model.get_step()
+            k = step // 1000
 
-            speed = (i + 1) / (time.time() - start)
-            t = time_since(start)
-            l = running_loss / (i + 1)
+            speed = i / (time.time() - start)
+
+            avg_loss = running_loss / i
+
+            if step % hp.tts_checkpoint_every == 0 :
+                model.checkpoint(paths.tts_checkpoints)
+
+            if step % hp.tts_plot_every == 0 :
+                save_attention(attention, paths.tts_attention, step)
+
+            msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
+            stream(msg)
+
+        model.save(paths.tts_latest_weights)
+        model.log(paths.tts_log, msg)
+        print(' ')
 
 
 if __name__ == "__main__" :
@@ -83,25 +97,23 @@ if __name__ == "__main__" :
                      num_highways=hp.tts_num_highways,
                      dropout=hp.tts_dropout).cuda()
 
-    # Check to make sure the hop length is correctly factorised
-    assert np.cumprod(hp.voc_upsample_factors)[-1] == hp.hop_length
 
     paths = Paths(hp.data_path, hp.model_id)
 
-    voc_model.restore(paths.voc_latest_weights)
+    model.restore(paths.tts_latest_weights)
 
-    optimiser = optim.Adam(voc_model.parameters())
+    optimiser = optim.Adam(model.parameters())
 
-    train_set, test_set = get_vocoder_datasets(paths.data, batch_size)
+    train_set = get_tts_dataset(paths.data, batch_size)
 
-    total_steps = 10_000_000 if force_train else hp.voc_total_steps
+    total_steps = 10_000_000 if force_train else hp.tts_total_steps
 
-    simple_table([('Steps Remaining', str((total_steps - voc_model.get_step())//1000) + 'k'),
+    simple_table([('Steps Remaining', str((total_steps - model.get_step())//1000) + 'k'),
                   ('Batch Size', batch_size),
                   ('Learning Rate', lr),
                   ('Sequence Length', hp.voc_seq_len)])
 
-    voc_train_loop(voc_model, optimiser, train_set, test_set, lr, total_steps)
+    tts_train_loop(model, optimiser, train_set, lr, total_steps)
 
     print('Training Complete.')
     print('To continue training increase tts_total_steps in hparams.py or use --force_train')

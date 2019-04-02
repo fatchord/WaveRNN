@@ -2,29 +2,41 @@ import pickle
 import random
 import torch
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.sampler import Sampler
 from utils.dsp import *
 import hparams as hp
+from utils.text import text_to_sequence
 
 
-class VocoderDataset(Dataset):
-    def __init__(self, ids, path):
+###################################################################################
+# WaveRNN/Vocoder Dataset #########################################################
+###################################################################################
+
+
+class VocoderDataset(Dataset) :
+    def __init__(self, ids, path) :
         self.path = path
         self.metadata = ids
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) :
         file = self.metadata[index]
         m = np.load(f'{self.path}mel/{file}.npy')
         x = np.load(f'{self.path}quant/{file}.npy')
         return m, x
 
-    def __len__(self):
+    def __len__(self) :
         return len(self.metadata)
 
 
-def get_vocoder_datasets(path, batch_size=16) :
+def get_vocoder_datasets(path, batch_size) :
 
-    with open(f'{path}dataset_ids.pkl', 'rb') as f:
-        dataset_ids = pickle.load(f)
+    with open(f'{path}dataset.pkl', 'rb') as f :
+        dataset = pickle.load(f)
+
+    dataset_ids = [x[0] for x in dataset]
+
+    random.seed(1234)
+    random.shuffle(dataset_ids)
 
     test_ids = dataset_ids[-hp.voc_test_samples:]
     train_ids = dataset_ids[:-hp.voc_test_samples]
@@ -71,14 +83,55 @@ def collate_vocoder(batch):
     return x, y, mels
 
 
+###################################################################################
+# Tacotron/TTS Dataset ############################################################
+###################################################################################
+
+
+def get_tts_dataset(path, batch_size) :
+
+    with open(f'{path}dataset.pkl', 'rb') as f :
+        dataset = pickle.load(f)
+
+    dataset_ids = []
+    mel_lengths = []
+
+    for (id, len) in dataset :
+        if len <= hp.tts_max_input_len :
+            dataset_ids += [id]
+            mel_lengths += [len]
+
+    with open(f'{path}text_dict.pkl', 'rb') as f:
+        text_dict = pickle.load(f)
+
+    train_dataset = TTSDataset(path, dataset_ids, text_dict)
+
+    sampler = None
+
+    if hp.tts_bin_lengths :
+        sampler = BinnedLengthSampler(mel_lengths, batch_size, bin_size=512)
+
+    train_set = DataLoader(train_dataset,
+                           collate_fn=collate_tts,
+                           batch_size=batch_size,
+                           sampler=sampler,
+                           num_workers=1,
+                           pin_memory=True)
+
+    return train_set
+
+
 class TTSDataset(Dataset):
-    def __init__(self, dataset_ids):
+    def __init__(self, path, dataset_ids, text_dict) :
+        self.path = path
         self.metadata = dataset_ids
+        self.text_dict = text_dict
 
     def __getitem__(self, index):
-        file = self.metadata[index]
-        mel = np.load(f'{DATA_PATH}mel/{file}.npy')
-        return x, mel, file
+        id = self.metadata[index]
+        x = text_to_sequence(self.text_dict[id], hp.tts_cleaner_names)
+        mel = np.load(f'{self.path}mel/{id}.npy')
+        return x, mel
 
     def __len__(self):
         return len(self.metadata)
@@ -93,6 +146,9 @@ def pad2d(x, max_len) :
 
 
 def collate_tts(batch):
+
+    r = hp.tts_r
+
     x_lens = [len(x[0]) for x in batch]
     max_x_len = max(x_lens)
 
@@ -107,14 +163,14 @@ def collate_tts(batch):
     mel = [pad2d(x[1], max_spec_len) for x in batch]
     mel = np.stack(mel)
 
-    files = [x[2] for x in batch]
+    # files = [x[2] for x in batch]
 
-    chars = torch.LongTensor(chars)
-    mel = torch.FloatTensor(mel)
+    chars = torch.tensor(chars).long()
+    mel = torch.tensor(mel)
 
     # scale spectrograms to -4 <--> 4
     mel = (mel * 8.) - 4.
-    return chars, mel, files
+    return chars, mel
 
 
 class BinnedLengthSampler(Sampler):
@@ -146,4 +202,18 @@ class BinnedLengthSampler(Sampler):
         return iter(torch.tensor(binned_idx).long())
 
     def __len__(self):
-        return len(self.indices)
+        return len(self.idx)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
