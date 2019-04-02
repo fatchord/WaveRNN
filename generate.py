@@ -1,4 +1,4 @@
-from utils.dataset import get_datasets
+from utils.dataset import get_vocoder_datasets
 from utils.dsp import *
 from models.fatchord_wavernn import Model
 from utils.paths import Paths
@@ -99,7 +99,7 @@ if __name__ == "__main__":
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
 
-    _, test_set = get_datasets(paths.data)
+    _, test_set = get_vocoder_datasets(paths.data)
 
     if file :
         gen_from_file(model, file, paths.voc_output, batched, target, overlap)
