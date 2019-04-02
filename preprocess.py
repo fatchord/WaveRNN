@@ -6,6 +6,9 @@ from multiprocessing import Pool, cpu_count
 from utils.paths import Paths
 import pickle
 import argparse
+from utils.text.recipes import ljspeech
+from utils.files import get_files
+
 
 parser = argparse.ArgumentParser(description='Preprocessing for WaveRNN')
 parser.add_argument('--path', '-p', default=hp.wav_path, help='directly point to dataset path (overrides hparams.wav_path')
@@ -14,13 +17,6 @@ args = parser.parse_args()
 
 extension = args.extension
 path = args.path
-
-
-def get_files(path, extension='.wav') :
-    filenames = []
-    for filename in glob.iglob(f'{path}/**/*{extension}', recursive=True):
-        filenames += [filename]
-    return filenames
 
 
 def convert_file(path) :
@@ -38,7 +34,7 @@ def process_wav(path) :
     m, x = convert_file(path)
     np.save(f'{paths.mel}{id}.npy', m, allow_pickle=False)
     np.save(f'{paths.quant}{id}.npy', x, allow_pickle=False)
-    return id
+    return id, m.shape[-1]
 
 
 wav_files = get_files(path, extension)
@@ -53,6 +49,11 @@ if len(wav_files) == 0 :
 
 else :
 
+    text_dict = ljspeech(path)
+
+    with open(f'{paths.data}text_dict.pkl', 'wb') as f:
+        pickle.dump(text_dict, f)
+
     simple_table([('Sample Rate', hp.sample_rate),
                   ('Bit Depth', hp.bits),
                   ('Mu Law', hp.mu_law),
@@ -61,14 +62,19 @@ else :
 
     pool = Pool(processes=cpu_count())
     dataset_ids = []
+    mel_lengths = []
 
-    for i, id in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
+    for i, (id, length) in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
         dataset_ids += [id]
+        mel_lengths += [length]
         bar = progbar(i, len(wav_files))
         message = f'{bar} {i}/{len(wav_files)} '
         stream(message)
 
     with open(f'{paths.data}dataset_ids.pkl', 'wb') as f:
         pickle.dump(dataset_ids, f)
+
+    with open(f'{paths.data}mel_lengths.pkl', 'wb') as f:
+        pickle.dump(mel_lengths, f)
 
     print('\n\nCompleted. Ready to run "python train.py". \n')
