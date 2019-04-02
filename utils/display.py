@@ -79,6 +79,13 @@ def time_since(started) :
         return f'{m}m {s}s'
 
 
+def save_attention(attn, path, step) :
+    fig = plt.figure(figsize=(16,8))
+    plt.imshow(attn[0].T, interpolation='nearest', aspect='auto')
+    fig.savefig(f'{path}attention_{step}.png', bbox_inches='tight')
+    plt.close(fig)
+
+
 def plot(array) : 
     fig = plt.figure(figsize=(30, 5))
     ax = fig.add_subplot(111)
