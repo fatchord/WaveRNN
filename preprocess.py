@@ -10,7 +10,7 @@ from utils.text.recipes import ljspeech
 from utils.files import get_files
 
 
-parser = argparse.ArgumentParser(description='Preprocessing for WaveRNN')
+parser = argparse.ArgumentParser(description='Preprocessing for WaveRNN and Tacotron')
 parser.add_argument('--path', '-p', default=hp.wav_path, help='directly point to dataset path (overrides hparams.wav_path')
 parser.add_argument('--extension', '-e', default='.wav', help='file extension to search for in dataset folder')
 args = parser.parse_args()
@@ -61,20 +61,15 @@ else :
                   ('CPU Count', cpu_count())])
 
     pool = Pool(processes=cpu_count())
-    dataset_ids = []
-    mel_lengths = []
+    dataset = []
 
     for i, (id, length) in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
-        dataset_ids += [id]
-        mel_lengths += [length]
+        dataset += [(id, length)]
         bar = progbar(i, len(wav_files))
         message = f'{bar} {i}/{len(wav_files)} '
         stream(message)
 
-    with open(f'{paths.data}dataset_ids.pkl', 'wb') as f:
-        pickle.dump(dataset_ids, f)
-
-    with open(f'{paths.data}mel_lengths.pkl', 'wb') as f:
-        pickle.dump(mel_lengths, f)
+    with open(f'{paths.data}dataset.pkl', 'wb') as f:
+        pickle.dump(dataset, f)
 
     print('\n\nCompleted. Ready to run "python train_vocoder.py". \n')
