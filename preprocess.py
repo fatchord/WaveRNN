@@ -77,4 +77,4 @@ else :
     with open(f'{paths.data}mel_lengths.pkl', 'wb') as f:
         pickle.dump(mel_lengths, f)
 
-    print('\n\nCompleted. Ready to run "python train.py". \n')
+    print('\n\nCompleted. Ready to run "python train_vocoder.py". \n')
