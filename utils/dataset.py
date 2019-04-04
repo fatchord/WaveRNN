@@ -97,7 +97,7 @@ def get_tts_dataset(path, batch_size) :
     mel_lengths = []
 
     for (id, len) in dataset :
-        if len <= hp.tts_max_input_len :
+        if len <= hp.tts_max_mel_len :
             dataset_ids += [id]
             mel_lengths += [len]
 
@@ -109,7 +109,7 @@ def get_tts_dataset(path, batch_size) :
     sampler = None
 
     if hp.tts_bin_lengths :
-        sampler = BinnedLengthSampler(mel_lengths, batch_size, bin_size=512)
+        sampler = BinnedLengthSampler(mel_lengths, batch_size, hp.tts_bin_size)
 
     train_set = DataLoader(train_dataset,
                            collate_fn=collate_tts,
@@ -131,7 +131,7 @@ class TTSDataset(Dataset):
         id = self.metadata[index]
         x = text_to_sequence(self.text_dict[id], hp.tts_cleaner_names)
         mel = np.load(f'{self.path}mel/{id}.npy')
-        return x, mel
+        return x, mel, id
 
     def __len__(self):
         return len(self.metadata)
@@ -163,18 +163,18 @@ def collate_tts(batch):
     mel = [pad2d(x[1], max_spec_len) for x in batch]
     mel = np.stack(mel)
 
-    # files = [x[2] for x in batch]
+    ids = [x[2] for x in batch]
 
     chars = torch.tensor(chars).long()
     mel = torch.tensor(mel)
 
     # scale spectrograms to -4 <--> 4
     mel = (mel * 8.) - 4.
-    return chars, mel
+    return chars, mel, ids
 
 
 class BinnedLengthSampler(Sampler):
-    def __init__(self, lengths, batch_size, bin_size):
+    def __init__(self, lengths, batch_size, bin_size=None):
         _, self.idx = torch.sort(torch.tensor(lengths).long())
         self.batch_size = batch_size
         self.bin_size = bin_size if bin_size else batch_size * 4
