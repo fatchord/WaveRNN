@@ -194,10 +194,10 @@ class BinnedLengthSampler(Sampler):
         random.shuffle(bins)
         binned_idx = np.stack(bins).reshape(-1)
 
-        if len(binned_idx) < len(idx):
+        if len(binned_idx) < len(idx) :
             last_bin = idx[len(binned_idx):]
             random.shuffle(last_bin)
-            binned_indices = np.concatenate([binned_idx, last_bin])
+            binned_idx = np.concatenate([binned_idx, last_bin])
 
         return iter(torch.tensor(binned_idx).long())
 
