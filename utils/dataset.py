@@ -14,21 +14,23 @@ from utils.text import text_to_sequence
 
 
 class VocoderDataset(Dataset) :
-    def __init__(self, ids, path) :
-        self.path = path
+    def __init__(self, ids, path, train_gta=False) :
         self.metadata = ids
+        self.mel_path = f'{path}gta/' if train_gta else f'{path}mel/'
+        self.quant_path = f'{path}quant/'
+
 
     def __getitem__(self, index) :
-        file = self.metadata[index]
-        m = np.load(f'{self.path}mel/{file}.npy')
-        x = np.load(f'{self.path}quant/{file}.npy')
+        id = self.metadata[index]
+        m = np.load(f'{self.mel_path}{id}.npy')
+        x = np.load(f'{self.quant_path}{id}.npy')
         return m, x
 
     def __len__(self) :
         return len(self.metadata)
 
 
-def get_vocoder_datasets(path, batch_size) :
+def get_vocoder_datasets(path, batch_size, train_gta) :
 
     with open(f'{path}dataset.pkl', 'rb') as f :
         dataset = pickle.load(f)
@@ -41,8 +43,8 @@ def get_vocoder_datasets(path, batch_size) :
     test_ids = dataset_ids[-hp.voc_test_samples:]
     train_ids = dataset_ids[:-hp.voc_test_samples]
 
-    train_dataset = VocoderDataset(train_ids, path)
-    test_dataset = VocoderDataset(test_ids, path)
+    train_dataset = VocoderDataset(train_ids, path, train_gta)
+    test_dataset = VocoderDataset(test_ids, path, train_gta)
 
     train_set = DataLoader(train_dataset,
                            collate_fn=collate_vocoder,
@@ -62,7 +64,7 @@ def get_vocoder_datasets(path, batch_size) :
 
 def collate_vocoder(batch):
     mel_win = hp.voc_seq_len // hp.hop_length + 2 * hp.voc_pad
-    max_offsets = [x[0].shape[-1] - (mel_win + 2 * hp.voc_pad) for x in batch]
+    max_offsets = [x[0].shape[-1] -2 - (mel_win + 2 * hp.voc_pad) for x in batch]
     mel_offsets = [np.random.randint(0, offset) for offset in max_offsets]
     sig_offsets = [(offset + hp.voc_pad) * hp.hop_length for offset in mel_offsets]
 
@@ -131,7 +133,8 @@ class TTSDataset(Dataset):
         id = self.metadata[index]
         x = text_to_sequence(self.text_dict[id], hp.tts_cleaner_names)
         mel = np.load(f'{self.path}mel/{id}.npy')
-        return x, mel, id
+        mel_len = mel.shape[-1]
+        return x, mel, id, mel_len
 
     def __len__(self):
         return len(self.metadata)
@@ -164,13 +167,14 @@ def collate_tts(batch):
     mel = np.stack(mel)
 
     ids = [x[2] for x in batch]
+    mel_lens = [x[3] for x in batch]
 
     chars = torch.tensor(chars).long()
     mel = torch.tensor(mel)
 
     # scale spectrograms to -4 <--> 4
     mel = (mel * 8.) - 4.
-    return chars, mel, ids
+    return chars, mel, ids, mel_lens
 
 
 class BinnedLengthSampler(Sampler):

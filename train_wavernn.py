@@ -62,12 +62,14 @@ if __name__ == "__main__" :
     parser.add_argument('--lr', '-l', type=float,  help='[float] override hparams.py learning rate')
     parser.add_argument('--batch_size', '-b', type=int, help='[int] override hparams.py batch size')
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
+    parser.add_argument('--gta', '-g', action='store_true', help='train wavernn on GTA features')
     parser.set_defaults(lr=hp.voc_lr)
     parser.set_defaults(batch_size=hp.voc_batch_size)
     args = parser.parse_args()
 
     batch_size = args.batch_size
     force_train = args.force_train
+    train_gta = args.gta
     lr = args.lr
 
     print('\nInitialising Model...\n')
@@ -94,14 +96,15 @@ if __name__ == "__main__" :
 
     optimiser = optim.Adam(voc_model.parameters())
 
-    train_set, test_set = get_vocoder_datasets(paths.data, batch_size)
+    train_set, test_set = get_vocoder_datasets(paths.data, batch_size, train_gta)
 
     total_steps = 10_000_000 if force_train else hp.voc_total_steps
 
-    simple_table([('Steps Remaining', str((total_steps - voc_model.get_step())//1000) + 'k'),
+    simple_table([('Remaining', str((total_steps - voc_model.get_step())//1000) + 'k Steps'),
                   ('Batch Size', batch_size),
-                  ('Learning Rate', lr),
-                  ('Sequence Length', hp.voc_seq_len)])
+                  ('LR', lr),
+                  ('Sequence Len', hp.voc_seq_len),
+                  ('GTA Train', train_gta)])
 
     voc_train_loop(voc_model, optimiser, train_set, test_set, lr, total_steps)
 

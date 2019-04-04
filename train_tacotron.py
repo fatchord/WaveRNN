@@ -24,7 +24,7 @@ def tts_train_loop(model, optimizer, train_set, lr, total_steps):
         start = time.time()
         running_loss = 0
 
-        for i, (x, m, ids) in enumerate(train_set, 1):
+        for i, (x, m, _, _) in enumerate(train_set, 1):
 
             optimizer.zero_grad()
 
@@ -71,9 +71,7 @@ def create_gta_features(model, train_set, save_path):
 
     iters = len(train_set)
 
-    for i, (x, mels, ids) in enumerate(train_set, 1):
-
-        lengths = [m.shape[-1] for m in mels]
+    for i, (x, mels, ids, mel_lens) in enumerate(train_set, 1):
 
         x, mels = x.cuda(), mels.cuda()
 
@@ -82,8 +80,8 @@ def create_gta_features(model, train_set, save_path):
         gta = gta.cpu().numpy()
 
         for j in range(len(ids)) :
-
-            mel = gta[j][:, :lengths[j]]
+            mel = gta[j][:, :mel_lens[j]]
+            mel = (mel + 4) / 8
             id = ids[j]
             np.save(f'{save_path}{id}.npy', mel, allow_pickle=False)
 
@@ -138,10 +136,9 @@ if __name__ == "__main__" :
 
         total_steps = 10_000_000 if force_train else hp.tts_total_steps
 
-        simple_table([('Steps Remaining', str((total_steps - model.get_step())//1000) + 'k'),
+        simple_table([('Remaining', str((total_steps - model.get_step())//1000) + 'k Steps'),
                       ('Batch Size', batch_size),
-                      ('Learning Rate', lr),
-                      ('Sequence Length', hp.voc_seq_len)])
+                      ('Learning Rate', lr)])
 
         tts_train_loop(model, optimiser, train_set, lr, total_steps)
 
@@ -153,4 +150,4 @@ if __name__ == "__main__" :
 
     create_gta_features(model, train_set, paths.gta)
 
-    print('\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta')
+    print('\n\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta\n')

@@ -1,8 +1,7 @@
 # CONFIG
 wav_path = '/path/to/wav_files/'
 data_path = 'data/'
-model_id = 'lj_9bit_mulaw'
-
+model_id = 'ljspeech_9bit_mulaw'
 
 # ------------------------------------------------------------------------------------------------------------------#
 
@@ -53,30 +52,31 @@ voc_overlap = 550                   # number of samples for crossfading between 
 
 
 # TACOTRON/TTS MODEL
-tts_cleaner_names = ['english_cleaners']
-tts_r = 2
-tts_embed_dims = 256
+
+tts_r = 2                           # model predicts r frames per output step
+tts_embed_dims = 256                # embedding dimension for the graphemes/phoneme inputs
 tts_encoder_dims = 128
 tts_decoder_dims = 256
 tts_postnet_dims = 128
 tts_encoder_K = 16
-tts_lstm_dims = 512
+tts_lstm_dims = 512                 # decoder LSTM dimensions
 tts_postnet_K = 8
 tts_num_highways = 4
 tts_dropout = 0.5
+tts_cleaner_names = ['english_cleaners']
 
 # TACOTRON/TTS TRAINING
 
-tts_batch_size = 8
+tts_batch_size = 12                 # This fits LJ-Speech into 8GB of GPU mem
 tts_lr = 1e-4
-tts_max_input_len = 1000
-tts_bin_lengths = True
-tts_bin_size = 512
-tts_total_steps = 300_000
-tts_clip_grad_norm = 1.0
+tts_max_mel_len = 2000              # if you have a couple of extremely long spectrograms you might want to use this
+tts_bin_lengths = True              # bins the spectrogram lengths before sampling in data loader - speeds up training
+tts_bin_size = 48                   # how many spectrograms in each bin - must be a multiple of batch size
+tts_total_steps = 200_000
+tts_clip_grad_norm = 1.0            # clips the gradient norm to prevent explosion
 tts_checkpoint_every = 25_000
-tts_plot_every = 5_000
-tts_phoneme_prob = 0.0
+tts_plot_every = 1_000              # how often to plot the attention
+tts_phoneme_prob = 0.0              # [0 <-> 1] probability for feeding model phonemes vrs graphemes
 
 
 # ------------------------------------------------------------------------------------------------------------------#
