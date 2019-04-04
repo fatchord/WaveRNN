@@ -1,8 +1,9 @@
 import time
+import numpy as np
 import torch
 from torch import optim
 import torch.nn.functional as F
-from utils.display import stream, simple_table, save_attention
+from utils.display import stream, simple_table, save_attention, progbar
 from utils.dataset import get_tts_dataset
 import hparams as hp
 from utils.text.symbols import symbols
@@ -23,7 +24,7 @@ def tts_train_loop(model, optimizer, train_set, lr, total_steps):
         start = time.time()
         running_loss = 0
 
-        for i, (x, m) in enumerate(train_set, 1):
+        for i, (x, m, ids) in enumerate(train_set, 1):
 
             optimizer.zero_grad()
 
@@ -39,6 +40,7 @@ def tts_train_loop(model, optimizer, train_set, lr, total_steps):
             running_loss += loss.item()
 
             loss.backward()
+
             if hp.tts_clip_grad_norm :
                 torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
 
@@ -65,6 +67,31 @@ def tts_train_loop(model, optimizer, train_set, lr, total_steps):
         print(' ')
 
 
+def create_gta_features(model, train_set, save_path):
+
+    iters = len(train_set)
+
+    for i, (x, mels, ids) in enumerate(train_set, 1):
+
+        lengths = [m.shape[-1] for m in mels]
+
+        x, mels = x.cuda(), mels.cuda()
+
+        with torch.no_grad() : _, gta, _ = model(x, mels)
+
+        gta = gta.cpu().numpy()
+
+        for j in range(len(ids)) :
+
+            mel = gta[j][:, :lengths[j]]
+            id = ids[j]
+            np.save(f'{save_path}{id}.npy', mel, allow_pickle=False)
+
+        bar = progbar(i, iters)
+        msg = f'{bar} {i}/{iters} Batches '
+        stream(msg)
+
+
 if __name__ == "__main__" :
 
     # Parse Arguments
@@ -72,12 +99,14 @@ if __name__ == "__main__" :
     parser.add_argument('--lr', '-l', type=float,  help='[float] override hparams.py learning rate')
     parser.add_argument('--batch_size', '-b', type=int, help='[int] override hparams.py batch size')
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
+    parser.add_argument('--force_gta', '-g', action='store_true', help='Force the model to create GTA features')
     parser.set_defaults(lr=hp.tts_lr)
     parser.set_defaults(batch_size=hp.tts_batch_size)
     args = parser.parse_args()
 
     batch_size = args.batch_size
     force_train = args.force_train
+    force_gta = args.force_gta
     lr = args.lr
 
     print('\nInitialising Tacotron Model...\n')
@@ -97,7 +126,6 @@ if __name__ == "__main__" :
                      num_highways=hp.tts_num_highways,
                      dropout=hp.tts_dropout).cuda()
 
-
     paths = Paths(hp.data_path, hp.model_id)
 
     model.restore(paths.tts_latest_weights)
@@ -106,14 +134,23 @@ if __name__ == "__main__" :
 
     train_set = get_tts_dataset(paths.data, batch_size)
 
-    total_steps = 10_000_000 if force_train else hp.tts_total_steps
+    if not force_gta :
 
-    simple_table([('Steps Remaining', str((total_steps - model.get_step())//1000) + 'k'),
-                  ('Batch Size', batch_size),
-                  ('Learning Rate', lr),
-                  ('Sequence Length', hp.voc_seq_len)])
+        total_steps = 10_000_000 if force_train else hp.tts_total_steps
 
-    tts_train_loop(model, optimiser, train_set, lr, total_steps)
+        simple_table([('Steps Remaining', str((total_steps - model.get_step())//1000) + 'k'),
+                      ('Batch Size', batch_size),
+                      ('Learning Rate', lr),
+                      ('Sequence Length', hp.voc_seq_len)])
 
-    print('Training Complete.')
-    print('To continue training increase tts_total_steps in hparams.py or use --force_train')
+        tts_train_loop(model, optimiser, train_set, lr, total_steps)
+
+        print('Training Complete.')
+        print('To continue training increase tts_total_steps in hparams.py or use --force_train\n')
+
+
+    print('Creating Ground Truth Aligned Dataset...\n')
+
+    create_gta_features(model, train_set, paths.gta)
+
+    print('\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta')
