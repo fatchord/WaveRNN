@@ -9,9 +9,9 @@ class Paths :
         self.mel = f'{self.data}mel/'
         self.gta = f'{self.data}gta/'
         # WaveRNN/Vocoder Paths
-        self.voc_checkpoints = f'checkpoints/{model_id}.vocoder/'
+        self.voc_checkpoints = f'checkpoints/{model_id}.wavernn/'
         self.voc_latest_weights = f'{self.voc_checkpoints}latest_weights.pyt'
-        self.voc_output = f'model_outputs/{model_id}.vocoder/'
+        self.voc_output = f'model_outputs/{model_id}.wavernn/'
         self.voc_step = f'{self.voc_checkpoints}/step.npy'
         self.voc_log = f'{self.voc_checkpoints}log.txt'
         # Tactron/TTS Paths
