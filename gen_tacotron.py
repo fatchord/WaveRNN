@@ -18,12 +18,13 @@ if __name__ == "__main__" :
     parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     parser.add_argument('--weights_path', '-w', type=str, help='[string/path] Load in different Tacotron Weights')
+    parser.add_argument('--save_attention', '-a', dest='save_attn', action='store_true', help='Save Attention Plots')
     parser.set_defaults(batched=hp.voc_gen_batched)
     parser.set_defaults(target=hp.voc_target)
     parser.set_defaults(overlap=hp.voc_overlap)
     parser.set_defaults(input_text=None)
     parser.set_defaults(weights_path=None)
-
+    parser.set_defaults(save_attention=False)
     args = parser.parse_args()
 
     batched = args.batched
@@ -31,6 +32,7 @@ if __name__ == "__main__" :
     overlap = args.overlap
     input_text = args.input_text
     weights_path = args.weights_path
+    save_attn = args.save_attention
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
@@ -87,19 +89,21 @@ if __name__ == "__main__" :
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
 
-    mels = []
     for i, x in enumerate(inputs, 1) :
+
         print(f'\n| Generating {i}/{len(inputs)}')
         _, m, attention = tts_model.generate(x)
+
         if input_text :
             save_path = f'{paths.tts_output}__input_{input_text[:10]}_{tts_k}k.wav'
         else :
-            save_path = f'{paths.tts_output}{i}_bathed_{str(batched)}_{tts_k}k.wav'
-        save_attention(attention, save_path)
+            save_path = f'{paths.tts_output}{i}_batched{str(batched)}_{tts_k}k.wav'
+
+        if save_attn : save_attention(attention, save_path)
+
         m = torch.tensor(m).unsqueeze(0)
         m = (m + 4) / 8
+
         voc_model.generate(m, save_path, batched, hp.voc_target, hp.voc_overlap, hp.mu_law)
-
-
 
     print('\n\nDone.\n')
