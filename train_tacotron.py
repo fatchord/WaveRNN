@@ -124,7 +124,7 @@ if __name__ == "__main__" :
                      num_highways=hp.tts_num_highways,
                      dropout=hp.tts_dropout).cuda()
 
-    paths = Paths(hp.data_path, hp.model_id)
+    paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
     model.restore(paths.tts_latest_weights)
 

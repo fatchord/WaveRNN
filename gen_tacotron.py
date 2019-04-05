@@ -22,7 +22,7 @@ if __name__ == "__main__" :
     batched = args.batched
     custom_text = args.text
 
-    paths = Paths(hp.data_path, hp.model_id)
+    paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
     print('\nInitialising WaveRNN Model...\n')
 

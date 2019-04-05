@@ -90,7 +90,7 @@ if __name__ == "__main__" :
     # Check to make sure the hop length is correctly factorised
     assert np.cumprod(hp.voc_upsample_factors)[-1] == hp.hop_length
 
-    paths = Paths(hp.data_path, hp.model_id)
+    paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
     voc_model.restore(paths.voc_latest_weights)
 
