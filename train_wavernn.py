@@ -6,7 +6,7 @@ from utils.display import stream, simple_table
 from utils.dataset import get_vocoder_datasets
 import hparams as hp
 from models.fatchord_wavernn import Model
-from generate import gen_testset
+from gen_wavernn import gen_testset
 from utils.paths import Paths
 import argparse
 
