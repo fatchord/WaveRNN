@@ -72,4 +72,4 @@ else :
     with open(f'{paths.data}dataset.pkl', 'wb') as f:
         pickle.dump(dataset, f)
 
-    print('\n\nCompleted. Ready to run "python train_wavernn.py". \n')
+    print('\n\nCompleted. Ready to run "python train_tacotron.py" or "python train_wavernn.py". \n')
