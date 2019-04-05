@@ -1,0 +1,5 @@
+numpy
+librosa
+unidecode
+inflect
+nltk

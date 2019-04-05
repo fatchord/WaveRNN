@@ -2,16 +2,14 @@
 
 Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio Synthesis](https://arxiv.org/abs/1802.08435v1)
 
-# Dependencies
+# Installation
 
 * Python >= 3.6
-* Pytorch 1.0.1 with CUDA
-* Numpy 1.16.0
-* Librosa 0.6.0
-* unidecode
-* inflect
-* nltk
+* [Pytorch 1.0.1 with CUDA](https://pytorch.org/)
 
+Then install the rest with pip:
+
+> pip install -r requirements.txt
 
 # Training
 
