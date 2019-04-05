@@ -2,22 +2,22 @@ import os
 
 
 class Paths :
-    def __init__(self, data_path, model_id) :
+    def __init__(self, data_path, voc_id, tts_id) :
         # Data Paths
-        self.data = f'{data_path}/{model_id}/'
+        self.data = f'{data_path}/{voc_id}/'
         self.quant = f'{self.data}quant/'
         self.mel = f'{self.data}mel/'
         self.gta = f'{self.data}gta/'
         # WaveRNN/Vocoder Paths
-        self.voc_checkpoints = f'checkpoints/{model_id}.wavernn/'
+        self.voc_checkpoints = f'checkpoints/{voc_id}.wavernn/'
         self.voc_latest_weights = f'{self.voc_checkpoints}latest_weights.pyt'
-        self.voc_output = f'model_outputs/{model_id}.wavernn/'
+        self.voc_output = f'model_outputs/{voc_id}.wavernn/'
         self.voc_step = f'{self.voc_checkpoints}/step.npy'
         self.voc_log = f'{self.voc_checkpoints}log.txt'
         # Tactron/TTS Paths
-        self.tts_checkpoints = f'checkpoints/{model_id}.tacotron/'
+        self.tts_checkpoints = f'checkpoints/{tts_id}.tacotron/'
         self.tts_latest_weights = f'{self.tts_checkpoints}latest_weights.pyt'
-        self.tts_output = f'model_outputs/{model_id}.tts/'
+        self.tts_output = f'model_outputs/{tts_id}.tts/'
         self.tts_step = f'{self.tts_checkpoints}/step.npy'
         self.tts_log = f'{self.tts_checkpoints}log.txt'
         self.tts_attention = f'{self.tts_checkpoints}/attention/'
