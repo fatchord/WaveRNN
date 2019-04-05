@@ -4,8 +4,10 @@ Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio 
 
 # Installation
 
+Ensure you have: 
+
 * Python >= 3.6
-* [Pytorch 1.0.1 with CUDA](https://pytorch.org/)
+* [Pytorch 1 with CUDA](https://pytorch.org/)
 
 Then install the rest with pip:
 
