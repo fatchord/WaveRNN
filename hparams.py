@@ -5,14 +5,10 @@
 wav_path = '/path/to/wav_files/'
 data_path = 'data/'
 
-# model ids are split - that way you can train a new tts with an old wavernn and vice versa
+# model ids are separate - that way you can use a new tts with an old wavernn and vice versa
+# NB: expect undefined behaviour if models were trained on different DSP settings
 voc_model_id = 'ljspeech_9bit_mulaw'
 tts_model_id = 'ljspeech_9bit_mulaw'
-
-# use this if you want a quick start i.e., use pretrained models with gen_tacotron.py
-# allow_pretrained = True
-# voc_pretrained = 'pretrained/ljspeech_700k_gta.tar.gz'
-# tts_pretrained = 'pretrained/ljspeech_700k_gta.tar.gz'
 
 
 # DSP --------------------------------------------------------------------------------------------------------------#
@@ -46,7 +42,6 @@ voc_res_blocks = 10
 # Training
 voc_batch_size = 32
 voc_lr = 1e-4
-voc_start_checkpointing = 100_000   # start checkpointing after this amount of steps
 voc_checkpoint_every = 25_000
 voc_gen_at_checkpoint = 5           # number of samples to generate at each checkpoint
 voc_total_steps = 500_000           # Total number of training steps
@@ -83,11 +78,10 @@ tts_max_mel_len = 2000              # if you have a couple of extremely long spe
 tts_bin_lengths = True              # bins the spectrogram lengths before sampling in data loader - speeds up training
 tts_bin_size = 48                   # how many spectrograms in each bin - must be a multiple of batch size
 tts_total_steps = 200_000
-tts_clip_grad_norm = 1.0            # clips the gradient norm to prevent explosion
-tts_start_checkpoints = 50_000      # start checkpointing after this amount of step
+tts_clip_grad_norm = 1.0            # clips the gradient norm to prevent explosion - set to None if not needed
 tts_checkpoint_every = 10_000       # checkpoints the model every X steps
 tts_plot_every = 1_000              # how often to plot the attention
-tts_phoneme_prob = 0.0              # [0 <-> 1] probability for feeding model phonemes vrs graphemes
+# TODO: tts_phoneme_prob = 0.0              # [0 <-> 1] probability for feeding model phonemes vrs graphemes
 
 
 # ------------------------------------------------------------------------------------------------------------------#
