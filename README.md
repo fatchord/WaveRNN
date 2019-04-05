@@ -1,5 +1,7 @@
 # WaveRNN
 
+##### (NB: Vanilla Tacotron One TTS system just implemented - more coming soon!)
+
 Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio Synthesis](https://arxiv.org/abs/1802.08435v1)
 
 # Installation
@@ -25,7 +27,7 @@ This will generate everything in the default sentences.txt file and output to a 
 
 You can also use that script to generate custom tts sentences and/or use '-u' to generate unbatched (better audio quality):
 
-> python quick_start.py -u --input_text "What will happen if I run this command!'
+> python quick_start.py -u --input_text "What will happen if I run this command?'
 
 
 ### Training your own Models
@@ -69,13 +71,9 @@ And finally, you can always use --help on any of those scripts to see what optio
 
 
 
-
-
-
-
 # Samples
 
-[Can be found here.](https://fatchord.github.io/model_outputs/) (Note these are old and new are coming soon.)
+[Can be found here.](https://fatchord.github.io/model_outputs/) (Note these are old - new ones are coming soon.)
 
 # Pretrained Models
 
