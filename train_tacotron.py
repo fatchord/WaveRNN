@@ -57,7 +57,7 @@ def tts_train_loop(model, optimizer, train_set, lr, total_steps):
                 model.checkpoint(paths.tts_checkpoints)
 
             if step % hp.tts_plot_every == 0 :
-                save_attention(attention[0], paths.tts_attention, step)
+                save_attention(attention[0], f'{paths.tts_attention}{k}k')
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
             stream(msg)

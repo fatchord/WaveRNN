@@ -79,10 +79,10 @@ def time_since(started) :
         return f'{m}m {s}s'
 
 
-def save_attention(attn, path, step) :
+def save_attention(attn, path) :
     fig = plt.figure(figsize=(16,8))
     plt.imshow(attn.T, interpolation='nearest', aspect='auto')
-    fig.savefig(f'{path}attention_{step // 1000}k.png', bbox_inches='tight')
+    fig.savefig(f'{path}.png', bbox_inches='tight')
     plt.close(fig)
 
 
