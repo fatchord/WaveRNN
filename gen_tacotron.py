@@ -6,21 +6,27 @@ from utils.paths import Paths
 from models.tacotron import Tacotron
 import argparse
 from utils.text import text_to_sequence
-from utils.display import save_attention
+from utils.display import save_attention, simple_table
 
 if __name__ == "__main__" :
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='TTS Generator')
-    parser.add_argument('--text', '-t', type=str, help='[string] Type in something here and TTS will generate it!')
+    parser.add_argument('--input_text', '-i', type=str, help='[string] Type in something here and TTS will generate it!')
     parser.add_argument('--batched', '-b', dest='batched', action='store_true', help='Fast Batched Generation')
     parser.add_argument('--unbatched', '-u', dest='batched', action='store_false', help='Slow Unbatched Generation')
+    parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
+    parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     parser.set_defaults(batched=hp.voc_gen_batched)
-    parser.set_defaults(text=None)
+    parser.set_defaults(target=hp.voc_target)
+    parser.set_defaults(overlap=hp.voc_overlap)
+    parser.set_defaults(input_text=None)
     args = parser.parse_args()
 
     batched = args.batched
-    custom_text = args.text
+    target = args.target
+    overlap = args.overlap
+    input_text = args.input_text
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
@@ -60,11 +66,20 @@ if __name__ == "__main__" :
 
     tts_model.restore(paths.tts_latest_weights)
 
-    if custom_text :
-        inputs = [text_to_sequence(custom_text.strip(), hp.tts_cleaner_names)]
+    if input_text :
+        inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]
     else :
         with open('sentences.txt') as f :
             inputs = [text_to_sequence(l.strip(), hp.tts_cleaner_names) for l in f]
+
+    voc_k = voc_model.get_step() // 1000
+    tts_k = tts_model.get_step() // 1000
+
+    simple_table([('WaveRNN', str(voc_k) + 'k'),
+                  ('Tacotron', str(tts_k) + 'k'),
+                  ('Generation Mode', 'Batched' if batched else 'Unbatched'),
+                  ('Target Samples', target if batched else 'N/A'),
+                  ('Overlap Samples', overlap if batched else 'N/A')])
 
     mels = []
     for i, x in enumerate(inputs, 1) :
