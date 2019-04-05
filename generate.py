@@ -99,7 +99,7 @@ if __name__ == "__main__":
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
 
-    _, test_set = get_vocoder_datasets(paths.data)
+    _, test_set = get_vocoder_datasets(paths.data, 1, False)
 
     if file :
         gen_from_file(model, file, paths.voc_output, batched, target, overlap)
