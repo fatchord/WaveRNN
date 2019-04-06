@@ -120,7 +120,12 @@ def get_tts_dataset(path, batch_size) :
                            num_workers=1,
                            pin_memory=True)
 
-    return train_set
+    longest = mel_lengths.index(max(mel_lengths))
+    attn_example = dataset_ids[longest]
+
+    # print(attn_example)
+
+    return train_set, attn_example
 
 
 class TTSDataset(Dataset):
