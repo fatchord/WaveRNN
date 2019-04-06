@@ -1,9 +1,7 @@
-import time
-import numpy as np
 import torch
 from torch import optim
 import torch.nn.functional as F
-from utils.display import stream, simple_table, save_attention, progbar
+from utils.display import *
 from utils.dataset import get_tts_dataset
 import hparams as hp
 from utils.text.symbols import symbols
@@ -12,7 +10,10 @@ from models.tacotron import Tacotron
 import argparse
 
 
-def tts_train_loop(model, optimizer, train_set, lr, total_steps):
+def np_now(x) : return x.detach().cpu().numpy()
+
+
+def tts_train_loop(model, optimizer, train_set, lr, total_steps, attn_example):
 
     for p in optimizer.param_groups: p['lr'] = lr
 
@@ -24,7 +25,7 @@ def tts_train_loop(model, optimizer, train_set, lr, total_steps):
         start = time.time()
         running_loss = 0
 
-        for i, (x, m, _, _) in enumerate(train_set, 1):
+        for i, (x, m, ids, _) in enumerate(train_set, 1):
 
             optimizer.zero_grad()
 
@@ -56,8 +57,10 @@ def tts_train_loop(model, optimizer, train_set, lr, total_steps):
             if step % hp.tts_checkpoint_every == 0 :
                 model.checkpoint(paths.tts_checkpoints)
 
-            if step % hp.tts_plot_every == 0 :
-                save_attention(attention[0], f'{paths.tts_attention}{k}k')
+            if attn_example in ids :
+                idx = ids.index(attn_example)
+                save_attention(attention[idx][:, :160], f'{paths.tts_attention}{step}')
+                save_spectrogram(np_now(m2_hat[idx]), f'{paths.tts_mel_plot}{step}', 300)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
             stream(msg)
@@ -130,7 +133,7 @@ if __name__ == "__main__" :
 
     optimiser = optim.Adam(model.parameters())
 
-    train_set = get_tts_dataset(paths.data, batch_size)
+    train_set, attn_example = get_tts_dataset(paths.data, batch_size)
 
     if not force_gta :
 
@@ -140,7 +143,7 @@ if __name__ == "__main__" :
                       ('Batch Size', batch_size),
                       ('Learning Rate', lr)])
 
-        tts_train_loop(model, optimiser, train_set, lr, total_steps)
+        tts_train_loop(model, optimiser, train_set, lr, total_steps, attn_example)
 
         print('Training Complete.')
         print('To continue training increase tts_total_steps in hparams.py or use --force_train\n')
