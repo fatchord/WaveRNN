@@ -196,7 +196,7 @@ class Decoder(nn.Module) :
         if not self.generating :
             rnn1_hidden = self.zoneout(rnn1_hidden, rnn1_hidden_next)
         else :
-            rnn1_hidden = rnn1_hidden * 0.1 + rnn1_hidden_next * 0.9
+            rnn1_hidden =  rnn1_hidden_next
         x = x + rnn1_hidden
         
         # Compute second Residual RNN
@@ -204,7 +204,7 @@ class Decoder(nn.Module) :
         if not self.generating :
             rnn2_hidden = self.zoneout(rnn2_hidden, rnn2_hidden_next)
         else :
-            rnn2_hidden = rnn2_hidden * 0.1 + rnn2_hidden_next * 0.9
+            rnn2_hidden =  rnn2_hidden_next
         x = x + rnn2_hidden
         
         # Project Mels
