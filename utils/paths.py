@@ -21,6 +21,7 @@ class Paths :
         self.tts_step = f'{self.tts_checkpoints}/step.npy'
         self.tts_log = f'{self.tts_checkpoints}log.txt'
         self.tts_attention = f'{self.tts_checkpoints}/attention/'
+        self.tts_mel_plot = f'{self.tts_checkpoints}/mel_plots/'
         self.create_paths()
 
     def create_paths(self) :
@@ -33,3 +34,5 @@ class Paths :
         os.makedirs(self.tts_checkpoints, exist_ok=True)
         os.makedirs(self.tts_output, exist_ok=True)
         os.makedirs(self.tts_attention, exist_ok=True)
+        os.makedirs(self.tts_mel_plot, exist_ok=True)
+
