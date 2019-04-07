@@ -49,10 +49,12 @@ if len(wav_files) == 0 :
 
 else :
 
-    text_dict = ljspeech(path)
+    if not hp.ignore_tts :
 
-    with open(f'{paths.data}text_dict.pkl', 'wb') as f:
-        pickle.dump(text_dict, f)
+        text_dict = ljspeech(path)
+
+        with open(f'{paths.data}text_dict.pkl', 'wb') as f:
+            pickle.dump(text_dict, f)
 
     simple_table([('Sample Rate', hp.sample_rate),
                   ('Bit Depth', hp.bits),
