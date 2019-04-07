@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class HighwayNetwork(nn.Module) :
     def __init__(self, size) :
         super().__init__()
@@ -17,7 +18,8 @@ class HighwayNetwork(nn.Module) :
         g = torch.sigmoid(x2)
         y = g * F.relu(x1) + (1. - g) * x
         return y
-    
+
+
 class Encoder(nn.Module) : 
     def __init__(self, embed_dims, num_chars, cbhg_channels, K, num_highways, dropout) :
         super().__init__()
@@ -33,7 +35,8 @@ class Encoder(nn.Module) :
         x.transpose_(1, 2)
         x = self.cbhg(x)
         return x
-    
+
+
 class BatchNormConv(nn.Module) :
     def __init__(self, in_channels, out_channels, kernel, relu=True) :
         super().__init__()
@@ -110,7 +113,8 @@ class CBHG(nn.Module) :
         # And then the RNN
         x, _ = self.rnn(x)
         return x
-    
+
+
 class PreNet(nn.Module) :
     def __init__(self, in_dims, fc1_dims=256, fc2_dims=128, dropout=0.5) :
         super().__init__()
@@ -144,11 +148,13 @@ class Attention(nn.Module) :
         scores = F.softmax(u, dim=1)
 
         return scores.transpose(1, 2)
-    
+
+
 class Decoder(nn.Module) :
-    def __init__(self,r, n_mels, decoder_dims, lstm_dims) :
+    def __init__(self, n_mels, decoder_dims, lstm_dims) :
         super().__init__()
-        self.r = r
+        self.max_r = 20
+        self.r = None
         self.generating = False
         self.n_mels = n_mels
         self.prenet = PreNet(n_mels)
@@ -157,7 +163,7 @@ class Decoder(nn.Module) :
         self.rnn_input = nn.Linear(2 * decoder_dims, lstm_dims)
         self.res_rnn1 = nn.LSTMCell(lstm_dims, lstm_dims)
         self.res_rnn2 = nn.LSTMCell(lstm_dims, lstm_dims)
-        self.mel_proj = nn.Linear(lstm_dims, n_mels * r, bias=False)
+        self.mel_proj = nn.Linear(lstm_dims, n_mels * self.max_r, bias=False)
         
     def zoneout(self, prev, current, p=0.1) :
         mask = torch.zeros(prev.size()).bernoulli_(p).cuda()
@@ -196,7 +202,7 @@ class Decoder(nn.Module) :
         if not self.generating :
             rnn1_hidden = self.zoneout(rnn1_hidden, rnn1_hidden_next)
         else :
-            rnn1_hidden =  rnn1_hidden_next
+            rnn1_hidden = rnn1_hidden_next
         x = x + rnn1_hidden
         
         # Compute second Residual RNN
@@ -204,12 +210,12 @@ class Decoder(nn.Module) :
         if not self.generating :
             rnn2_hidden = self.zoneout(rnn2_hidden, rnn2_hidden_next)
         else :
-            rnn2_hidden =  rnn2_hidden_next
+            rnn2_hidden = rnn2_hidden_next
         x = x + rnn2_hidden
         
         # Project Mels
         mels = self.mel_proj(x)
-        mels = mels.view(batch_size, self.n_mels, self.r)
+        mels = mels.view(batch_size, self.n_mels, self.max_r)[:, :, :self.r]
         hidden_states = (attn_hidden, rnn1_hidden, rnn2_hidden)
         cell_states = (rnn1_cell, rnn2_cell)
         
@@ -217,24 +223,30 @@ class Decoder(nn.Module) :
     
     
 class Tacotron(nn.Module) :
-    def __init__(self, r, embed_dims, num_chars, encoder_dims, decoder_dims, n_mels, fft_bins, postnet_dims,
+    def __init__(self, embed_dims, num_chars, encoder_dims, decoder_dims, n_mels, fft_bins, postnet_dims,
                  encoder_K, lstm_dims, postnet_K, num_highways, dropout) :
         super().__init__()
-        self.r = r
         self.n_mels = n_mels
         self.lstm_dims = lstm_dims
         self.decoder_dims = decoder_dims
         self.encoder = Encoder(embed_dims, num_chars, encoder_dims, 
                                encoder_K, num_highways, dropout)
         self.encoder_proj = nn.Linear(decoder_dims, decoder_dims, bias=False)
-        self.decoder = Decoder(r, n_mels, decoder_dims, lstm_dims)
+        self.decoder = Decoder(n_mels, decoder_dims, lstm_dims)
         self.postnet = CBHG(postnet_K, n_mels, postnet_dims, [256, 80], num_highways)
         self.post_proj = nn.Linear(postnet_dims * 2, fft_bins, bias=False)
 
         self.init_model()
         self.num_params()
 
+        # Unfortunately I have to put these settings into params in order to save
+        # if anyone knows a better way of doing this please open an issue in the repo
         self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
+        self.r = nn.Parameter(torch.tensor(0).long(), requires_grad=False)
+
+    def set_r(self, r) :
+        self.r.data = torch.tensor(r)
+        self.decoder.r = r
 
     def forward(self, x, m, generate_gta=False) :
 
@@ -387,6 +399,7 @@ class Tacotron(nn.Module) :
         else:
             print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
+            self.decoder.r = self.r.item()
 
     def load(self, path):
         self.load_state_dict(torch.load(path), strict=False)

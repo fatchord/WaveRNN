@@ -56,8 +56,7 @@ if __name__ == "__main__" :
     print('\nInitialising Tacotron Model...\n')
 
     # Instantiate Tacotron Model
-    tts_model = Tacotron(r=hp.tts_r,
-                         embed_dims=hp.tts_embed_dims,
+    tts_model = Tacotron(embed_dims=hp.tts_embed_dims,
                          num_chars=len(symbols),
                          encoder_dims=hp.tts_encoder_dims,
                          decoder_dims=hp.tts_decoder_dims,
@@ -70,9 +69,15 @@ if __name__ == "__main__" :
                          num_highways=hp.tts_num_highways,
                          dropout=hp.tts_dropout).cuda()
 
+
+
+
+
     tts_restore_path = weights_path if weights_path else paths.tts_latest_weights
 
     tts_model.restore(tts_restore_path)
+
+
 
     if input_text :
         inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]

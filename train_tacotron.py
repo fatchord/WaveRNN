@@ -113,8 +113,7 @@ if __name__ == "__main__" :
     print('\nInitialising Tacotron Model...\n')
 
     # Instantiate Tacotron Model
-    model = Tacotron(r=hp.tts_r,
-                     embed_dims=hp.tts_embed_dims,
+    model = Tacotron(embed_dims=hp.tts_embed_dims,
                      num_chars=len(symbols),
                      encoder_dims=hp.tts_encoder_dims,
                      decoder_dims=hp.tts_decoder_dims,
@@ -131,6 +130,8 @@ if __name__ == "__main__" :
 
     model.restore(paths.tts_latest_weights)
 
+    model.set_r(hp.tts_r)
+
     optimiser = optim.Adam(model.parameters())
 
     train_set, attn_example = get_tts_dataset(paths.data, batch_size)
@@ -141,7 +142,8 @@ if __name__ == "__main__" :
 
         simple_table([('Remaining', str((total_steps - model.get_step())//1000) + 'k Steps'),
                       ('Batch Size', batch_size),
-                      ('Learning Rate', lr)])
+                      ('Learning Rate', lr),
+                      ('Outputs/Step (r)', model.r.item())])
 
         tts_train_loop(model, optimiser, train_set, lr, total_steps, attn_example)
 
