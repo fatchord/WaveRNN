@@ -60,7 +60,7 @@ def tts_train_loop(model, optimizer, train_set, lr, total_steps, attn_example):
             if attn_example in ids :
                 idx = ids.index(attn_example)
                 save_attention(attention[idx][:, :160], f'{paths.tts_attention}{step}')
-                save_spectrogram(np_now(m2_hat[idx]), f'{paths.tts_mel_plot}{step}', 300)
+                save_spectrogram(np_now(m2_hat[idx]), f'{paths.tts_mel_plot}{step}', 600)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
             stream(msg)
@@ -130,22 +130,34 @@ if __name__ == "__main__" :
 
     model.restore(paths.tts_latest_weights)
 
+    # model.reset_step()
+
     model.set_r(hp.tts_r)
 
     optimiser = optim.Adam(model.parameters())
 
-    train_set, attn_example = get_tts_dataset(paths.data, batch_size)
+    current_step = model.get_step()
 
     if not force_gta :
 
-        total_steps = 10_000_000 if force_train else hp.tts_total_steps
+        for session in hp.tts_schedule :
 
-        simple_table([('Remaining', str((total_steps - model.get_step())//1000) + 'k Steps'),
-                      ('Batch Size', batch_size),
-                      ('Learning Rate', lr),
-                      ('Outputs/Step (r)', model.r.item())])
+            r, lr, max_step, batch_size = session
 
-        tts_train_loop(model, optimiser, train_set, lr, total_steps, attn_example)
+            if current_step < max_step :
+
+                train_set, attn_example = get_tts_dataset(paths.data, batch_size, r)
+
+                model.set_r(r)
+
+                training_steps = max_step - current_step
+
+                simple_table([(f'Steps with r={r}', str(training_steps//1000) + 'k Steps'),
+                              ('Batch Size', batch_size),
+                              ('Learning Rate', lr),
+                              ('Outputs/Step (r)', model.r.item())])
+
+                tts_train_loop(model, optimiser, train_set, lr, training_steps, attn_example)
 
         print('Training Complete.')
         print('To continue training increase tts_total_steps in hparams.py or use --force_train\n')

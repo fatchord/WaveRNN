@@ -90,7 +90,7 @@ def collate_vocoder(batch):
 ###################################################################################
 
 
-def get_tts_dataset(path, batch_size) :
+def get_tts_dataset(path, batch_size, r) :
 
     with open(f'{path}dataset.pkl', 'rb') as f :
         dataset = pickle.load(f)
@@ -111,10 +111,10 @@ def get_tts_dataset(path, batch_size) :
     sampler = None
 
     if hp.tts_bin_lengths :
-        sampler = BinnedLengthSampler(mel_lengths, batch_size, hp.tts_bin_size)
+        sampler = BinnedLengthSampler(mel_lengths, batch_size, batch_size * 3)
 
     train_set = DataLoader(train_dataset,
-                           collate_fn=collate_tts,
+                           collate_fn=lambda batch : collate_tts(batch, r),
                            batch_size=batch_size,
                            sampler=sampler,
                            num_workers=1,
@@ -153,9 +153,7 @@ def pad2d(x, max_len) :
     return np.pad(x, ((0, 0), (0, max_len - x.shape[-1])), mode='constant')
 
 
-def collate_tts(batch):
-
-    r = hp.tts_r
+def collate_tts(batch, r):
 
     x_lens = [len(x[0]) for x in batch]
     max_x_len = max(x_lens)
@@ -183,10 +181,10 @@ def collate_tts(batch):
 
 
 class BinnedLengthSampler(Sampler):
-    def __init__(self, lengths, batch_size, bin_size=None):
+    def __init__(self, lengths, batch_size, bin_size):
         _, self.idx = torch.sort(torch.tensor(lengths).long())
         self.batch_size = batch_size
-        self.bin_size = bin_size if bin_size else batch_size * 4
+        self.bin_size = bin_size
         assert self.bin_size % self.batch_size == 0
 
     def __iter__(self):

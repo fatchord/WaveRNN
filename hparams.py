@@ -3,12 +3,12 @@
 
 # Here are the input and output data paths (Note: you can override wav_path in preprocess.py)
 wav_path = '/path/to/wav_files/'
-data_path = 'data/'
+data_path = 'data/nixon/'
 
 # model ids are separate - that way you can use a new tts with an old wavernn and vice versa
 # NB: expect undefined behaviour if models were trained on different DSP settings
-voc_model_id = 'ljspeech_9bit_mulaw'
-tts_model_id = 'ljspeech_9bit_mulaw'
+voc_model_id = 'nixon_9bit_mulaw'
+tts_model_id = 'nixon_progressive'
 
 
 # DSP --------------------------------------------------------------------------------------------------------------#
@@ -59,7 +59,7 @@ voc_overlap = 550                   # number of samples for crossfading between 
 
 
 # Model Hparams
-tts_r = 2                           # model predicts r frames per output step
+tts_r = 1                           # model predicts r frames per output step
 tts_embed_dims = 256                # embedding dimension for the graphemes/phoneme inputs
 tts_encoder_dims = 128
 tts_decoder_dims = 256
@@ -72,14 +72,19 @@ tts_dropout = 0.5
 tts_cleaner_names = ['english_cleaners']
 
 # Training
-tts_batch_size = 12                 # This fits LJ-Speech into 8GB of GPU mem
+
+
+tts_schedule = [(10, 1e-3,  50_000,  28),   # progressive training schedule
+                (5,  5e-4,  75_000,  28),   # (r, lr, step, batch_size)
+                (2,  1e-4,  150_000, 12),
+                (1,  1e-4,  200_000, 8)]
+
+tts_batch_size = 8                  # This fits LJ-Speech into 8GB of GPU mem
 tts_lr = 1e-4
-tts_max_mel_len = 2000              # if you have a couple of extremely long spectrograms you might want to use this
+tts_max_mel_len = 1250              # if you have a couple of extremely long spectrograms you might want to use this
 tts_bin_lengths = True              # bins the spectrogram lengths before sampling in data loader - speeds up training
-tts_bin_size = 48                   # how many spectrograms in each bin - must be a multiple of batch size
-tts_total_steps = 200_000
 tts_clip_grad_norm = 1.0            # clips the gradient norm to prevent explosion - set to None if not needed
-tts_checkpoint_every = 10_000       # checkpoints the model every X steps
+tts_checkpoint_every = 2_000        # checkpoints the model every X steps
 tts_plot_every = 1_000              # how often to plot the attention
 # TODO: tts_phoneme_prob = 0.0              # [0 <-> 1] probability for feeding model phonemes vrs graphemes
 

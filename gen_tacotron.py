@@ -69,15 +69,8 @@ if __name__ == "__main__" :
                          num_highways=hp.tts_num_highways,
                          dropout=hp.tts_dropout).cuda()
 
-
-
-
-
     tts_restore_path = weights_path if weights_path else paths.tts_latest_weights
-
     tts_model.restore(tts_restore_path)
-
-
 
     if input_text :
         inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]
@@ -90,6 +83,7 @@ if __name__ == "__main__" :
 
     simple_table([('WaveRNN', str(voc_k) + 'k'),
                   ('Tacotron', str(tts_k) + 'k'),
+                  ('r', tts_model.r.item()),
                   ('Generation Mode', 'Batched' if batched else 'Unbatched'),
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])

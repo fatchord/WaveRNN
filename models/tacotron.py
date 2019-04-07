@@ -381,8 +381,11 @@ class Tacotron(nn.Module) :
         for p in self.parameters():
             if p.dim() > 1 : nn.init.xavier_uniform_(p)
 
-    def get_step(self):
+    def get_step(self) :
         return self.step.data.item()
+
+    def reset_step(self) :
+        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
 
     def checkpoint(self, path):
         k_steps = self.get_step() // 1000
