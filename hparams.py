@@ -3,12 +3,15 @@
 
 # Here are the input and output data paths (Note: you can override wav_path in preprocess.py)
 wav_path = '/path/to/wav_files/'
-data_path = 'data/nixon/'
+data_path = 'data/'
 
 # model ids are separate - that way you can use a new tts with an old wavernn and vice versa
 # NB: expect undefined behaviour if models were trained on different DSP settings
-voc_model_id = 'nixon_9bit_mulaw'
-tts_model_id = 'nixon_progressive'
+voc_model_id = 'ljspeech_9bit_mulaw'
+tts_model_id = 'ljspeech_progressive'
+
+# set this to True if you are only interested in WaveRNN
+ignore_tts = False
 
 
 # DSP --------------------------------------------------------------------------------------------------------------#
@@ -74,11 +77,10 @@ tts_cleaner_names = ['english_cleaners']
 # Training
 
 
-tts_schedule = [(10, 1e-3,  50_000,  28),   # progressive training schedule
-                (5,  5e-4,  75_000,  28),   # (r, lr, step, batch_size)
-                (2,  1e-4,  150_000, 12),
-                (1,  1e-4,  200_000, 8)]
-
+tts_schedule = [(10, 1e-4,  50_000,  32),   # progressive training schedule
+                (5,  1e-4, 100_000,  32),    # (r, lr, step, batch_size)
+                (2,  1e-4, 150_000,  16),
+                (1,  1e-4, 250_000,  8)]
 tts_batch_size = 8                  # This fits LJ-Speech into 8GB of GPU mem
 tts_lr = 1e-4
 tts_max_mel_len = 1250              # if you have a couple of extremely long spectrograms you might want to use this

@@ -13,12 +13,12 @@ import argparse
 def np_now(x) : return x.detach().cpu().numpy()
 
 
-def tts_train_loop(model, optimizer, train_set, lr, total_steps, attn_example):
+def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
     for p in optimizer.param_groups: p['lr'] = lr
 
     total_iters = len(train_set)
-    epochs = (total_steps - model.get_step()) // total_iters + 1
+    epochs = train_steps // total_iters + 1
 
     for e in range(epochs):
 
@@ -132,7 +132,7 @@ if __name__ == "__main__" :
 
     # model.reset_step()
 
-    model.set_r(hp.tts_r)
+    # model.set_r(hp.tts_r)
 
     optimiser = optim.Adam(model.parameters())
 
@@ -155,7 +155,7 @@ if __name__ == "__main__" :
                 simple_table([(f'Steps with r={r}', str(training_steps//1000) + 'k Steps'),
                               ('Batch Size', batch_size),
                               ('Learning Rate', lr),
-                              ('Outputs/Step (r)', model.r.item())])
+                              ('Outputs/Step (r)', model.get_r())])
 
                 tts_train_loop(model, optimiser, train_set, lr, training_steps, attn_example)
 
@@ -165,6 +165,7 @@ if __name__ == "__main__" :
 
     print('Creating Ground Truth Aligned Dataset...\n')
 
+    train_set, attn_example = get_tts_dataset(paths.data, 8, model.get_r())
     create_gta_features(model, train_set, paths.gta)
 
     print('\n\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta\n')

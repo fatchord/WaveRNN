@@ -248,6 +248,9 @@ class Tacotron(nn.Module) :
         self.r.data = torch.tensor(r)
         self.decoder.r = r
 
+    def get_r(self) :
+        return self.r.item()
+
     def forward(self, x, m, generate_gta=False) :
 
         self.step += 1

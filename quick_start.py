@@ -12,11 +12,11 @@ import zipfile, os
 os.makedirs('quick_start/tts_weights/', exist_ok=True)
 os.makedirs('quick_start/voc_weights/', exist_ok=True)
 
-zip_ref = zipfile.ZipFile('pretrained/ljspeech.wavernn.gta.600k.zip', 'r')
+zip_ref = zipfile.ZipFile('pretrained/ljspeech.wavernn.gta.800k.zip', 'r')
 zip_ref.extractall('quick_start/voc_weights/')
 zip_ref.close()
 
-zip_ref = zipfile.ZipFile('pretrained/ljspeech.tacotron.150k.zip', 'r')
+zip_ref = zipfile.ZipFile('pretrained/ljspeech.tacotron.r1.196k.zip', 'r')
 zip_ref.extractall('quick_start/tts_weights/')
 zip_ref.close()
 
@@ -64,8 +64,7 @@ if __name__ == "__main__" :
     print('\nInitialising Tacotron Model...\n')
 
     # Instantiate Tacotron Model
-    tts_model = Tacotron(r=hp.tts_r,
-                         embed_dims=hp.tts_embed_dims,
+    tts_model = Tacotron(embed_dims=hp.tts_embed_dims,
                          num_chars=len(symbols),
                          encoder_dims=hp.tts_encoder_dims,
                          decoder_dims=hp.tts_decoder_dims,
@@ -90,8 +89,10 @@ if __name__ == "__main__" :
     voc_k = voc_model.get_step() // 1000
     tts_k = tts_model.get_step() // 1000
 
+    r = tts_model.get_r()
+
     simple_table([('WaveRNN', str(voc_k) + 'k'),
-                  ('Tacotron', str(tts_k) + 'k'),
+                  (f'Tacotron(r={r})', str(tts_k) + 'k'),
                   ('Generation Mode', 'Batched' if batched else 'Unbatched'),
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
