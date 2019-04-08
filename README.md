@@ -1,21 +1,11 @@
 # WaveRNN
 
-Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio Synthesis](https://arxiv.org/abs/1802.08435v1)
+This code is forked from https://github.com/fatchord/WaveRNN and optimized for [Mozilla-TTS](https://github.com/mozilla/TTS).
 
-<img src="https://raw.githubusercontent.com/fatchord/WaveRNN/master/assets/WaveRNN.png" alt="drawing" width="600px"/>
-<img src="https://raw.githubusercontent.com/fatchord/WaveRNN/master/assets/wavernn_alt_model_hrz2.png" alt="drawing" width="600px"/>
+# Released Models
+| Models        |Dataset | Commit            | Audio Sample  | Details |
+| ------------- |:------:|:-----------------:|:--------------|:--------|
+| [mold model](https://drive.google.com/drive/folders/1wpPn3a0KQc6EYtKL0qOi4NqEmhML71Ve?usp=sharing) |LJspeech| 8a1c152| (soundcloud)[] | Mixture of Logistic Distribution |
+| [10bit model](https://drive.google.com/drive/folders/1VnTJfg2zmvochFNyX7oyUv9TFq6JsnVp?usp=sharing) | LJSpeech | | | Output with 10bit Softmax|
 
-### Implementation Details
-Currently, there are two models in this repo. The first is WaveRNN, however it is quite slow to train (~7 days).
-
-The good news is that I came up with another model that trains much faster and can handle the noise in predicted features from Tacotron and similar models. The sound quality is not as good as Wavenet but it's not that far off. [You can listen to the samples here and judge for yourself.](https://fatchord.github.io/model_outputs/)
-
-Notebooks 1 - 3 are self-contained however notebooks 4a and 4b need to be run sequentially. You can stop & close notebook 4b (training) whenever you like and it will pick up from where you left off.
-
-
-### Dependencies
-* Python 3
-* Pytorch v0.4
-* Librosa
-
-**Disclaimer** I do not represent or work for Deepmind/Google.
+Check this [TTS notebook](https://github.com/mozilla/TTS/blob/master/notebooks/Benchmark.ipynb) to see TTS+WaveRNN in action. 
