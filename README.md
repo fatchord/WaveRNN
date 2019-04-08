@@ -1,6 +1,6 @@
 # WaveRNN
 
-##### (NB: Vanilla Tacotron One TTS system just implemented - more coming soon!)
+##### (Update: Vanilla Tacotron One TTS system just implemented - more coming soon!)
 
 Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio Synthesis](https://arxiv.org/abs/1802.08435v1)
 
@@ -73,7 +73,7 @@ And finally, you can always use --help on any of those scripts to see what optio
 
 # Samples
 
-[Can be found here.](https://fatchord.github.io/model_outputs/) (Note these are old - new ones are coming soon.)
+[Can be found here.](https://fatchord.github.io/model_outputs/)
 
 # Pretrained Models
 
@@ -81,10 +81,8 @@ Currently there are two pretrained models available in the /pretrained/ folder':
 
 Both are trained on LJSpeech
 
-* WaveRNN trained to 600k steps (400k normal mels/200k gta finetuned)
-* Tacotron trained to 150k steps
-
-NB - Better pretrained models are coming!
+* WaveRNN trained to 800k steps (400k normal mels / 500k gta finetuned)
+* Tacotron(r=1) trained to 196k steps
 
 # Acknowledgments
 
