@@ -32,7 +32,7 @@ You can also use that script to generate custom tts sentences and/or use '-u' to
 
 ### Training your own Models
 
-Download the LJSpeech Dataset 
+Download the [LJSpeech](https://keithito.com/LJ-Speech-Dataset/) Dataset.
 
 Edit **hparams.py**, point **wav_path** to your dataset and run: 
 
@@ -51,7 +51,7 @@ Here's my recommendation on what order to run things:
 
 > python train_tacotron.py --force_gta
 
-this will force tactron to create a GTA dataset even if it hasn't finish training
+this will force tactron to create a GTA dataset even if it hasn't finish training.
 
 3 - Train WaveRNN with:
 
@@ -81,7 +81,7 @@ Currently there are two pretrained models available in the /pretrained/ folder':
 
 Both are trained on LJSpeech
 
-* WaveRNN trained to 800k steps (400k normal mels / 500k gta finetuned)
+* WaveRNN trained to 800k steps (400k normal mels / 400k gta finetuned)
 * Tacotron(r=1) trained to 196k steps
 
 # Acknowledgments
