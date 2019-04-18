@@ -88,10 +88,17 @@ class UpsampleNetwork(nn.Module):
 class Model(nn.Module):
     def __init__(self, rnn_dims, fc_dims, bits, pad, upsample_factors,
                  feat_dims, compute_dims, res_out_dims, res_blocks,
-                 hop_length, sample_rate):
+                 hop_length, sample_rate, mode='RAW'):
         super().__init__()
+        self.mode = mode
         self.pad = pad
-        self.n_classes = 2 ** bits
+        if self.mode == 'RAW' :
+            self.n_classes = 2 ** bits
+        elif self.mode == 'MOL' :
+            self.n_classes = 30
+        else :
+            RuntimeError("Unknown model mode value - ", self.mode)
+
         self.rnn_dims = rnn_dims
         self.aux_dims = res_out_dims // 4
         self.hop_length = hop_length
@@ -141,6 +148,8 @@ class Model(nn.Module):
 
     def generate(self, mels, save_path, batched, target, overlap, mu_law):
 
+        mu_law = mu_law if self.mode == 'RAW' else False
+
         self.eval()
         output = []
         start = time.time()
@@ -189,12 +198,24 @@ class Model(nn.Module):
                 x = F.relu(self.fc2(x))
 
                 logits = self.fc3(x)
-                posterior = F.softmax(logits, dim=1)
-                distrib = torch.distributions.Categorical(posterior)
 
-                sample = 2 * distrib.sample().float() / (self.n_classes - 1.) - 1.
-                output.append(sample)
-                x = sample.unsqueeze(-1)
+                if self.mode == 'MOL':
+                    sample = sample_from_discretized_mix_logistic(logits.unsqueeze(0).transpose(1, 2))
+                    output.append(sample.view(-1))
+                    # x = torch.FloatTensor([[sample]]).cuda()
+                    x = sample.transpose(0, 1).cuda()
+
+                elif self.mode == 'RAW' :
+                    posterior = F.softmax(logits, dim=1)
+                    distrib = torch.distributions.Categorical(posterior)
+
+                    sample = 2 * distrib.sample().float() / (self.n_classes - 1.) - 1.
+                    output.append(sample)
+                    x = sample.unsqueeze(-1)
+                else:
+                    raise RuntimeError("Unknown model mode value - ", self.mode)
+
+
 
                 if i % 100 == 0 : self.gen_display(i, seq_len, b_size, start)
 
@@ -215,6 +236,7 @@ class Model(nn.Module):
         self.train()
 
         return output
+
 
     def gen_display(self, i, seq_len, b_size, start):
         gen_rate = int((i + 1) / (time.time() - start) * b_size / 1000)
