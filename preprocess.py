@@ -25,8 +25,12 @@ def convert_file(path) :
     if hp.peak_norm or peak > 1.0:
         y /= peak
     mel = melspectrogram(y)
-    quant = encode_mu_law(y, mu=2**hp.bits) if hp.mu_law else float_2_label(y, bits=hp.bits)
-    return mel.astype(np.float32), quant.astype(np.int16)
+    if hp.voc_mode == 'RAW' :
+        quant = encode_mu_law(y, mu=2**hp.bits) if hp.mu_law else float_2_label(y, bits=hp.bits)
+    elif hp.voc_mode == 'MOL' :
+        quant = float_2_label(y, bits=16)
+
+    return mel.astype(np.float32), quant.astype(np.int64)
 
 
 def process_wav(path) :
