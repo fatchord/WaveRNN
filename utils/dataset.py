@@ -78,9 +78,15 @@ def collate_vocoder(batch):
     mels = torch.tensor(mels)
     labels = torch.tensor(labels).long()
 
-    x = label_2_float(labels[:, :hp.voc_seq_len].float(), hp.bits)
-
+    x = labels[:, :hp.voc_seq_len]
     y = labels[:, 1:]
+
+    bits = 16 if hp.voc_mode == 'MOL' else hp.bits
+
+    x = label_2_float(x.float(), bits)
+
+    if hp.voc_mode == 'MOL' :
+        y = label_2_float(y.float(), bits)
 
     return x, y, mels
 
