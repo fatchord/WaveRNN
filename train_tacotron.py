@@ -97,18 +97,12 @@ if __name__ == "__main__" :
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='Train Tacotron TTS')
-    parser.add_argument('--lr', '-l', type=float,  help='[float] override hparams.py learning rate')
-    parser.add_argument('--batch_size', '-b', type=int, help='[int] override hparams.py batch size')
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
     parser.add_argument('--force_gta', '-g', action='store_true', help='Force the model to create GTA features')
-    parser.set_defaults(lr=hp.tts_lr)
-    parser.set_defaults(batch_size=hp.tts_batch_size)
     args = parser.parse_args()
 
-    batch_size = args.batch_size
     force_train = args.force_train
     force_gta = args.force_gta
-    lr = args.lr
 
     print('\nInitialising Tacotron Model...\n')
 
