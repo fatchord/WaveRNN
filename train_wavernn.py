@@ -4,6 +4,7 @@ from torch import optim
 import torch.nn.functional as F
 from utils.display import stream, simple_table
 from utils.dataset import get_vocoder_datasets
+from utils.distribution import discretized_mix_logistic_loss
 import hparams as hp
 from models.fatchord_wavernn import Model
 from gen_wavernn import gen_testset
@@ -11,7 +12,7 @@ from utils.paths import Paths
 import argparse
 
 
-def voc_train_loop(model, optimiser, train_set, test_set, lr, total_steps):
+def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_steps):
 
     for p in optimiser.param_groups: p['lr'] = lr
 
@@ -27,9 +28,17 @@ def voc_train_loop(model, optimiser, train_set, test_set, lr, total_steps):
             x, m, y = x.cuda(), m.cuda(), y.cuda()
 
             y_hat = model(x, m)
-            y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
+
+            if model.mode == 'RAW' :
+                y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
+
+            elif model.mode == 'MOL' :
+                y = y.float()
+
             y = y.unsqueeze(-1)
-            loss = F.cross_entropy(y_hat, y)
+
+
+            loss = loss_func(y_hat, y)
 
             optimiser.zero_grad()
             loss.backward()
@@ -47,7 +56,7 @@ def voc_train_loop(model, optimiser, train_set, test_set, lr, total_steps):
                             hp.voc_target, hp.voc_overlap, paths.voc_output)
                 model.checkpoint(paths.voc_checkpoints)
 
-            msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
+            msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:.4f} | {speed:.1f} steps/s | Step: {k}k | '
             stream(msg)
 
         model.save(paths.voc_latest_weights)
@@ -85,7 +94,8 @@ if __name__ == "__main__" :
                       res_out_dims=hp.voc_res_out_dims,
                       res_blocks=hp.voc_res_blocks,
                       hop_length=hp.hop_length,
-                      sample_rate=hp.sample_rate).cuda()
+                      sample_rate=hp.sample_rate,
+                      mode=hp.voc_mode).cuda()
 
     # Check to make sure the hop length is correctly factorised
     assert np.cumprod(hp.voc_upsample_factors)[-1] == hp.hop_length
@@ -106,7 +116,9 @@ if __name__ == "__main__" :
                   ('Sequence Len', hp.voc_seq_len),
                   ('GTA Train', train_gta)])
 
-    voc_train_loop(voc_model, optimiser, train_set, test_set, lr, total_steps)
+    loss_func = F.cross_entropy if voc_model.mode == 'RAW' else discretized_mix_logistic_loss
+
+    voc_train_loop(voc_model, loss_func, optimiser, train_set, test_set, lr, total_steps)
 
     print('Training Complete.')
     print('To continue training increase voc_total_steps in hparams.py or use --force_train')
