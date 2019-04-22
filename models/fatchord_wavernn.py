@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from utils.distribution import sample_from_discretized_mix_logistic
 from utils.display import *
 from utils.dsp import *
 import os
@@ -159,6 +160,7 @@ class Model(nn.Module):
         with torch.no_grad():
 
             mels = mels.cuda()
+            wave_len = (mels.size(-1) - 1) * self.hop_length
             mels = self.pad_tensor(mels.transpose(1, 2), pad=self.pad, side='both')
             mels, aux = self.upsample(mels.transpose(1, 2))
 
@@ -215,8 +217,6 @@ class Model(nn.Module):
                 else:
                     raise RuntimeError("Unknown model mode value - ", self.mode)
 
-
-
                 if i % 100 == 0 : self.gen_display(i, seq_len, b_size, start)
 
         output = torch.stack(output).transpose(0, 1)
@@ -230,6 +230,11 @@ class Model(nn.Module):
 
         if mu_law :
             output = decode_mu_law(output, self.n_classes, False)
+
+        # Fade-out at the end to avoid signal cutting out suddenly
+        fade_out = np.linspace(1, 0, 2 * self.hop_length)
+        output = output[:wave_len]
+        output[-2 * self.hop_length:] *= fade_out
 
         save_wav(output, save_path)
 
