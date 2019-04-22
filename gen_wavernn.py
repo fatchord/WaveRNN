@@ -19,10 +19,12 @@ def gen_testset(model, test_set, samples, batched, target, overlap, save_path) :
 
         x = x[0].numpy()
 
-        if hp.mu_law :
-            x = decode_mu_law(x, 2**hp.bits, from_labels=True)
+        bits = 16 if hp.voc_mode == 'MOL' else hp.bits
+
+        if hp.mu_law and hp.voc_mode != 'MOL' :
+            x = decode_mu_law(x, 2**bits, from_labels=True)
         else :
-            x = label_2_float(x, hp.bits)
+            x = label_2_float(x, bits)
 
         save_wav(x, f'{save_path}{k}k_steps_{i}_target.wav')
 
@@ -90,7 +92,8 @@ if __name__ == "__main__":
                   res_out_dims=hp.voc_res_out_dims,
                   res_blocks=hp.voc_res_blocks,
                   hop_length=hp.hop_length,
-                  sample_rate=hp.sample_rate).cuda()
+                  sample_rate=hp.sample_rate,
+                  mode=hp.voc_mode).cuda()
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
