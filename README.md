@@ -33,6 +33,7 @@ You can also use that script to generate custom tts sentences and/or use '-u' to
 
 
 ### Training your own Models
+![Attenion and Mel Training GIF](assets/training_viz.gif)
 
 Download the [LJSpeech](https://keithito.com/LJ-Speech-Dataset/) Dataset.
 
