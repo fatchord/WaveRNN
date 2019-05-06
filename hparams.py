@@ -8,7 +8,7 @@ data_path = 'data/'
 # model ids are separate - that way you can use a new tts with an old wavernn and vice versa
 # NB: expect undefined behaviour if models were trained on different DSP settings
 voc_model_id = 'ljspeech_mol'
-tts_model_id = 'ljspeech_progressive'
+tts_model_id = 'ljspeech_lsa_smooth_attention'
 
 # set this to True if you are only interested in WaveRNN
 ignore_tts = False
@@ -78,9 +78,9 @@ tts_cleaner_names = ['english_cleaners']
 # Training
 
 
-tts_schedule = [(10, 1e-4,  50_000,  32),   # progressive training schedule
+tts_schedule = [(7,  1e-3,  10_000,  32),   # progressive training schedule
                 (5,  1e-4, 100_000,  32),   # (r, lr, step, batch_size)
-                (2,  1e-4, 150_000,  16),
+                (2,  1e-4, 180_000,  16),
                 (1,  1e-4, 350_000,  8)]
 
 tts_max_mel_len = 1250              # if you have a couple of extremely long spectrograms you might want to use this

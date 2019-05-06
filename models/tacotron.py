@@ -138,8 +138,9 @@ class Attention(nn.Module) :
         self.W = nn.Linear(attn_dims, attn_dims, bias=False)
         self.v = nn.Linear(attn_dims, 1, bias=False)
         
-    def forward(self, encoder_seq_proj, query) :
-        
+    def forward(self, encoder_seq_proj, query, t) :
+
+        # print(encoder_seq_proj.shape)
         # Transform the query vector
         query_proj = self.W(query).unsqueeze(1)
         
@@ -150,6 +151,42 @@ class Attention(nn.Module) :
         return scores.transpose(1, 2)
 
 
+class LSA(nn.Module):
+    def __init__(self, attn_dim, kernel_size=31, filters=32):
+        super().__init__()
+        self.conv = nn.Conv1d(2, filters, padding=(kernel_size - 1) // 2, kernel_size=kernel_size, bias=False)
+        self.L = nn.Linear(filters, attn_dim, bias=True)
+        self.W = nn.Linear(attn_dim, attn_dim, bias=True)
+        self.v = nn.Linear(attn_dim, 1, bias=False)
+        self.cumulative = None
+        self.attention = None
+
+    def init_attention(self, encoder_seq_proj) :
+        b, t, c = encoder_seq_proj.size()
+        self.cumulative = torch.zeros(b, t).cuda()
+        self.attention = torch.zeros(b, t).cuda()
+
+    def forward(self, encoder_seq_proj, query, t):
+
+        if t == 0 : self.init_attention(encoder_seq_proj)
+
+        processed_query = self.W(query).unsqueeze(1)
+
+        location = torch.cat([self.cumulative.unsqueeze(1), self.attention.unsqueeze(1)], dim=1)
+        processed_loc = self.L(self.conv(location).transpose(1, 2))
+
+        u = self.v(torch.tanh(processed_query + encoder_seq_proj + processed_loc))
+        u = u.squeeze(-1)
+
+        # Smooth Attention
+        scores = torch.sigmoid(u) / torch.sigmoid(u).sum(dim=1, keepdim=True)
+        # scores = F.softmax(u, dim=1)
+        self.attention = scores
+        self.cumulative += self.attention
+
+        return scores.unsqueeze(-1).transpose(1, 2)
+
+
 class Decoder(nn.Module) :
     def __init__(self, n_mels, decoder_dims, lstm_dims) :
         super().__init__()
@@ -158,7 +195,7 @@ class Decoder(nn.Module) :
         self.generating = False
         self.n_mels = n_mels
         self.prenet = PreNet(n_mels)
-        self.attn_net = Attention(decoder_dims)
+        self.attn_net = LSA(decoder_dims)
         self.attn_rnn = nn.GRUCell(decoder_dims + decoder_dims // 2, decoder_dims)
         self.rnn_input = nn.Linear(2 * decoder_dims, lstm_dims)
         self.res_rnn1 = nn.LSTMCell(lstm_dims, lstm_dims)
@@ -170,7 +207,7 @@ class Decoder(nn.Module) :
         return prev * mask + current * (1 - mask)
     
     def forward(self, encoder_seq, encoder_seq_proj, prenet_in, 
-                hidden_states, cell_states, context_vec) :
+                hidden_states, cell_states, context_vec, t) :
         
         # Need this for reshaping mels
         batch_size = encoder_seq.size(0)
@@ -187,7 +224,7 @@ class Decoder(nn.Module) :
         attn_hidden = self.attn_rnn(attn_rnn_in.squeeze(1), attn_hidden)
         
         # Compute the attention scores 
-        scores = self.attn_net(encoder_seq_proj, attn_hidden)
+        scores = self.attn_net(encoder_seq_proj, attn_hidden, t)
         
         # Dot product to create the context vector 
         context_vec = scores @ encoder_seq
@@ -292,11 +329,11 @@ class Tacotron(nn.Module) :
         mel_outputs, attn_scores = [], []
         
         # Run the decoder loop
-        for i in range(0, steps, self.r) :
-            prenet_in = m[:, :, i - 1] if i > 0 else go_frame
+        for t in range(0, steps, self.r) :
+            prenet_in = m[:, :, t - 1] if t > 0 else go_frame
             mel_frames, scores, hidden_states, cell_states, context_vec = \
                 self.decoder(encoder_seq, encoder_seq_proj, prenet_in, 
-                             hidden_states, cell_states, context_vec)
+                             hidden_states, cell_states, context_vec, t)
             mel_outputs.append(mel_frames)
             attn_scores.append(scores)
         
@@ -349,15 +386,15 @@ class Tacotron(nn.Module) :
         mel_outputs, attn_scores = [], []
         
         # Run the decoder loop
-        for i in range(0, steps, self.r) :
-            prenet_in = mel_outputs[-1][:, :, -1] if i > 0 else go_frame
+        for t in range(0, steps, self.r) :
+            prenet_in = mel_outputs[-1][:, :, -1] if t > 0 else go_frame
             mel_frames, scores, hidden_states, cell_states, context_vec = \
             self.decoder(encoder_seq, encoder_seq_proj, prenet_in, 
-                         hidden_states, cell_states, context_vec)
+                         hidden_states, cell_states, context_vec, t)
             mel_outputs.append(mel_frames)
             attn_scores.append(scores)
             # Stop the loop if silent frames present
-            if (mel_frames < -3.8).all() and i > 10 : break
+            if (mel_frames < -3.8).all() and t > 10 : break
         
         # Concat the mel outputs into sequence
         mel_outputs = torch.cat(mel_outputs, dim=2)
