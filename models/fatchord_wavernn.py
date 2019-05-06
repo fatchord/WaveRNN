@@ -244,9 +244,9 @@ class Model(nn.Module):
 
 
     def gen_display(self, i, seq_len, b_size, start):
-        gen_rate = int((i + 1) / (time.time() - start) * b_size / 1000)
+        gen_rate = (i + 1) / (time.time() - start) * b_size / 1000
         pbar = progbar(i, seq_len)
-        msg = f'| {pbar} {i*b_size}/{seq_len*b_size} | Batch Size: {b_size} | Gen Rate: {gen_rate}kHz | '
+        msg = f'| {pbar} {i*b_size}/{seq_len*b_size} | Batch Size: {b_size} | Gen Rate: {gen_rate:.1f}kHz | '
         stream(msg)
 
     def get_gru_cell(self, gru):
