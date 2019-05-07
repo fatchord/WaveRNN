@@ -84,8 +84,8 @@ Currently there are two pretrained models available in the /pretrained/ folder':
 
 Both are trained on LJSpeech
 
-* WaveRNN trained to 800k steps (400k normal mels / 400k gta finetuned)
-* Tacotron(r=1) trained to 196k steps
+* WaveRNN (Mixture of Logistics output) trained to 800k steps 
+* Tacotron trained to 180k steps
 
 ____
 
