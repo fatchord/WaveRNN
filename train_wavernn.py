@@ -6,7 +6,7 @@ from utils.display import stream, simple_table
 from utils.dataset import get_vocoder_datasets
 from utils.distribution import discretized_mix_logistic_loss
 import hparams as hp
-from models.fatchord_wavernn import Model
+from models.fatchord_version import WaveRNN
 from gen_wavernn import gen_testset
 from utils.paths import Paths
 import argparse
@@ -84,18 +84,18 @@ if __name__ == "__main__" :
     print('\nInitialising Model...\n')
 
     # Instantiate WaveRNN Model
-    voc_model = Model(rnn_dims=hp.voc_rnn_dims,
-                      fc_dims=hp.voc_fc_dims,
-                      bits=hp.bits,
-                      pad=hp.voc_pad,
-                      upsample_factors=hp.voc_upsample_factors,
-                      feat_dims=hp.num_mels,
-                      compute_dims=hp.voc_compute_dims,
-                      res_out_dims=hp.voc_res_out_dims,
-                      res_blocks=hp.voc_res_blocks,
-                      hop_length=hp.hop_length,
-                      sample_rate=hp.sample_rate,
-                      mode=hp.voc_mode).cuda()
+    voc_model = WaveRNN(rnn_dims=hp.voc_rnn_dims,
+                        fc_dims=hp.voc_fc_dims,
+                        bits=hp.bits,
+                        pad=hp.voc_pad,
+                        upsample_factors=hp.voc_upsample_factors,
+                        feat_dims=hp.num_mels,
+                        compute_dims=hp.voc_compute_dims,
+                        res_out_dims=hp.voc_res_out_dims,
+                        res_blocks=hp.voc_res_blocks,
+                        hop_length=hp.hop_length,
+                        sample_rate=hp.sample_rate,
+                        mode=hp.voc_mode).cuda()
 
     # Check to make sure the hop length is correctly factorised
     assert np.cumprod(hp.voc_upsample_factors)[-1] == hp.hop_length

@@ -1,6 +1,6 @@
 from utils.dataset import get_vocoder_datasets
 from utils.dsp import *
-from models.fatchord_wavernn import Model
+from models.fatchord_version import WaveRNN
 from utils.paths import Paths
 from utils.display import simple_table
 import torch
@@ -82,18 +82,18 @@ if __name__ == "__main__":
 
     print('\nInitialising Model...\n')
 
-    model = Model(rnn_dims=hp.voc_rnn_dims,
-                  fc_dims=hp.voc_fc_dims,
-                  bits=hp.bits,
-                  pad=hp.voc_pad,
-                  upsample_factors=hp.voc_upsample_factors,
-                  feat_dims=hp.num_mels,
-                  compute_dims=hp.voc_compute_dims,
-                  res_out_dims=hp.voc_res_out_dims,
-                  res_blocks=hp.voc_res_blocks,
-                  hop_length=hp.hop_length,
-                  sample_rate=hp.sample_rate,
-                  mode=hp.voc_mode).cuda()
+    model = WaveRNN(rnn_dims=hp.voc_rnn_dims,
+                    fc_dims=hp.voc_fc_dims,
+                    bits=hp.bits,
+                    pad=hp.voc_pad,
+                    upsample_factors=hp.voc_upsample_factors,
+                    feat_dims=hp.num_mels,
+                    compute_dims=hp.voc_compute_dims,
+                    res_out_dims=hp.voc_res_out_dims,
+                    res_blocks=hp.voc_res_blocks,
+                    hop_length=hp.hop_length,
+                    sample_rate=hp.sample_rate,
+                    mode=hp.voc_mode).cuda()
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
