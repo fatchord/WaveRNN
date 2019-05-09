@@ -203,7 +203,7 @@ class WaveRNN(nn.Module):
 
                 if self.mode == 'MOL':
                     sample = sample_from_discretized_mix_logistic(logits.unsqueeze(0).transpose(1, 2))
-                    output.append(sample.view(-1))
+                    output.extend(sample.view(-1))
                     # x = torch.FloatTensor([[sample]]).cuda()
                     x = sample.transpose(0, 1).cuda()
 
@@ -212,7 +212,7 @@ class WaveRNN(nn.Module):
                     distrib = torch.distributions.Categorical(posterior)
 
                     sample = 2 * distrib.sample().float() / (self.n_classes - 1.) - 1.
-                    output.append(sample)
+                    output.extend(sample)
                     x = sample.unsqueeze(-1)
                 else:
                     raise RuntimeError("Unknown model mode value - ", self.mode)
