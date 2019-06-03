@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from utils.distribution import sample_from_discretized_mix_logistic
 from utils.display import *
 from utils.dsp import *
+from scipy import signal
 import os
 
 
@@ -354,19 +355,10 @@ class WaveRNN(nn.Module):
         target = length - 2 * overlap
         total_len = num_folds * (target + overlap) + overlap
 
-        # Need some silence for the rnn warmup
-        silence_len = overlap // 2
-        fade_len = overlap - silence_len
-        silence = np.zeros((silence_len), dtype=np.float64)
-
         # Equal power crossfade
-        t = np.linspace(-1, 1, fade_len, dtype=np.float64)
-        fade_in = np.sqrt(0.5 * (1 + t))
-        fade_out = np.sqrt(0.5 * (1 - t))
-
-        # Concat the silence to the fades
-        fade_in = np.concatenate([silence, fade_in])
-        fade_out = np.concatenate([fade_out, silence])
+        window = signal.get_window('hann', 2 * overlap)
+        fade_in = window[:overlap]
+        fade_out = window[overlap:]
 
         # Apply the gain to the overlap samples
         y[:, :overlap] *= fade_in
