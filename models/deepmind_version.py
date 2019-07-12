@@ -71,17 +71,8 @@ class WaveRNN(nn.Module):
         return out_coarse, out_fine, hidden
     
         
-    def generate(self, seq_len, device=None):
-        """Generates audio from mel spectrograms.
-        Args:
-            device:  The device to use for the generation. If `None`, prefers GPU over CPU.
-        """
-        if device is None:
-            # Prefer CUDA if its available for faster inference
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        
-        # Place the model on the desired device
-        self.to(device)
+    def generate(self, seq_len):
+        device = next(self.parameters()).device  # use same device as parameters
 
         with torch.no_grad():
             
@@ -94,11 +85,11 @@ class WaveRNN(nn.Module):
             c_outputs, f_outputs = [], []
 
             # Some initial inputs
-            out_coarse = torch.tensor([0], dtype=long, device=device)
-            out_fine = torch.tensor([0], dtype=long, device=device)
+            out_coarse = torch.tensor([0], dtype=torch.long, device=device)
+            out_fine = torch.tensor([0], dtype=torch.long, device=device)
 
             # We'll meed a hidden state
-            hidden = self.get_initial_hidden(device=device)
+            hidden = self.get_initial_hidden()
 
             # Need a clock for display
             start = time.time()
@@ -172,16 +163,9 @@ class WaveRNN(nn.Module):
         
         return output, coarse, fine
 
-    def get_initial_hidden(self, batch_size=1, device=None):
-        """Returns an initial hiden state.
-        Args:
-            device:  The device to use for the generation. If `None`, prefers GPU over CPU.
-        """
-        if device is None:
-            # Prefer CUDA if its available for faster inference
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        
-        return torch.zeros(batch_size, self.hidden_size, device)
+    def get_initial_hidden(self, batch_size=1):
+        device = next(self.parameters()).device  # use same device as parameters
+        return torch.zeros(batch_size, self.hidden_size, device=device)
     
     def num_params(self):
         parameters = filter(lambda p: p.requires_grad, self.parameters())

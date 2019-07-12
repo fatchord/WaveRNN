@@ -62,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument('--file', '-f', type=str, help='[string/path] for testing a wav outside dataset')
     parser.add_argument('--weights', '-w', type=str, help='[string/path] checkpoint file to load weights from')
     parser.add_argument('--gta', '-g', dest='use_gta', action='store_true', help='Generate from GTA testset')
+    parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
 
     parser.set_defaults(batched=hp.voc_gen_batched)
     parser.set_defaults(samples=hp.voc_gen_at_checkpoint)
@@ -80,6 +81,12 @@ if __name__ == "__main__":
     file = args.file
     gta = args.gta
 
+    if not args.force_cpu and torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    print('Using device:', device)
+
     print('\nInitialising Model...\n')
 
     model = WaveRNN(rnn_dims=hp.voc_rnn_dims,
@@ -93,7 +100,7 @@ if __name__ == "__main__":
                     res_blocks=hp.voc_res_blocks,
                     hop_length=hp.hop_length,
                     sample_rate=hp.sample_rate,
-                    mode=hp.voc_mode).cuda()
+                    mode=hp.voc_mode).to(device)
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 

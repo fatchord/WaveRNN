@@ -162,7 +162,7 @@ class LSA(nn.Module):
         self.attention = None
 
     def init_attention(self, encoder_seq_proj):
-        device = encoder_seq_proj.device
+        device = next(self.parameters()).device  # use same device as parameters
         b, t, c = encoder_seq_proj.size()
         self.cumulative = torch.zeros(b, t, device=device)
         self.attention = torch.zeros(b, t, device=device)
@@ -292,8 +292,8 @@ class Tacotron(nn.Module):
         return self.r.item()
 
     def forward(self, x, m, generate_gta=False):
-        device = x.device
-        assert x.device == m.device
+        device = next(self.parameters()).device  # use same device as parameters
+
         self.step += 1
 
         if generate_gta:
@@ -355,28 +355,15 @@ class Tacotron(nn.Module):
             
         return mel_outputs, linear, attn_scores
     
-    def generate(self, x, steps=2000, device=None):
-        """Generates spectrograms from the input.
-        Args:
-            device:  The device to use for the generation. If specified, should match `x.device`
-                if `x` is a Tensor. If `None` AND `x` is not a tensor, it will prefer GPU over CPU.
-        """
-        if device is None:
-            if torch.is_tensor(x):
-                device = x.device
-            else:
-                # Prefer CUDA if its available for faster inference
-                device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        else:
-            if device is not None and torch.is_tensor(x) and device != x.device:
-                raise ValueError('`x` was a Tensor, but the specified device was different!')
+    def generate(self, x, steps=2000):
+        device = next(self.parameters()).device  # use same device as parameters
 
         self.encoder.eval()
         self.postnet.eval()
         self.decoder.generating = True
         
         batch_size = 1
-        x = torch.as_tensor(x, dtype=torch.int64, device=device).unsqueeze(0)
+        x = torch.as_tensor(x, dtype=torch.long, device=device).unsqueeze(0)
        
         # Need to initialise all hidden states and pack into tuple for tidyness
         attn_hidden = torch.zeros(batch_size, self.decoder_dims, device=device)

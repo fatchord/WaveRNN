@@ -19,6 +19,7 @@ if __name__ == "__main__":
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     parser.add_argument('--weights_path', '-w', type=str, help='[string/path] Load in different Tacotron Weights')
     parser.add_argument('--save_attention', '-a', dest='save_attn', action='store_true', help='Save Attention Plots')
+    parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
     parser.set_defaults(batched=hp.voc_gen_batched)
     parser.set_defaults(target=hp.voc_target)
     parser.set_defaults(overlap=hp.voc_overlap)
@@ -36,6 +37,12 @@ if __name__ == "__main__":
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
+    if not args.force_cpu and torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    print('Using device:', device)
+
     print('\nInitialising WaveRNN Model...\n')
 
     # Instantiate WaveRNN Model
@@ -50,7 +57,7 @@ if __name__ == "__main__":
                         res_blocks=hp.voc_res_blocks,
                         hop_length=hp.hop_length,
                         sample_rate=hp.sample_rate,
-                        mode=hp.voc_mode).cuda()
+                        mode=hp.voc_mode).to(device)
 
     voc_model.restore(paths.voc_latest_weights)
 
@@ -68,7 +75,7 @@ if __name__ == "__main__":
                          lstm_dims=hp.tts_lstm_dims,
                          postnet_K=hp.tts_postnet_K,
                          num_highways=hp.tts_num_highways,
-                         dropout=hp.tts_dropout).cuda()
+                         dropout=hp.tts_dropout).to(device)
 
     tts_restore_path = weights_path if weights_path else paths.tts_latest_weights
     tts_model.restore(tts_restore_path)

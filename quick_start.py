@@ -31,7 +31,6 @@ if __name__ == "__main__":
     parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
-    parser.set_defaults(force_cpu=False)
     parser.set_defaults(batched=hp.voc_gen_batched)
     parser.set_defaults(target=hp.voc_target)
     parser.set_defaults(overlap=hp.voc_overlap)
@@ -49,7 +48,7 @@ if __name__ == "__main__":
         device = torch.device('cuda')
     else:
         device = torch.device('cpu')
-
+    print('Using device:', device)
 
     print('\nInitialising WaveRNN Model...\n')
 
@@ -108,18 +107,18 @@ if __name__ == "__main__":
     for i, x in enumerate(inputs, 1):
 
         print(f'\n| Generating {i}/{len(inputs)}')
-        _, m, attention = tts_model.generate(x, device=device)
+        _, m, attention = tts_model.generate(x)
 
         if input_text:
             save_path = f'quick_start/__input_{input_text[:10]}_{tts_k}k.wav'
         else:
             save_path = f'quick_start/{i}_batched{str(batched)}_{tts_k}k.wav'
 
-        save_attention(attention, save_path)
+        # save_attention(attention, save_path)
 
         m = torch.tensor(m).unsqueeze(0)
         m = (m + 4) / 8
 
-        voc_model.generate(m, save_path, batched, hp.voc_target, hp.voc_overlap, hp.mu_law, device=device)
+        voc_model.generate(m, save_path, batched, hp.voc_target, hp.voc_overlap, hp.mu_law)
 
     print('\n\nDone.\n')

@@ -74,7 +74,6 @@ if __name__ == "__main__":
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
     parser.add_argument('--gta', '-g', action='store_true', help='train wavernn on GTA features')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
-    parser.set_defaults(force_cpu=False)
     parser.set_defaults(lr=hp.voc_lr)
     parser.set_defaults(batch_size=hp.voc_batch_size)
     args = parser.parse_args()
@@ -88,6 +87,7 @@ if __name__ == "__main__":
         device = torch.device('cuda')
     else:
         device = torch.device('cpu')
+    print('Using device:', device)
 
     print('\nInitialising Model...\n')
 

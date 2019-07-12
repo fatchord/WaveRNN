@@ -117,8 +117,8 @@ class WaveRNN(nn.Module):
         self.num_params()
 
     def forward(self, x, mels):
-        device = x.device
-        assert x.device == mels.device
+        device = next(self.parameters()).device  # use same device as parameters
+        
         self.step += 1
         bsize = x.size(0)
         h1 = torch.zeros(1, bsize, self.rnn_dims, device=device)
@@ -149,21 +149,8 @@ class WaveRNN(nn.Module):
         x = F.relu(self.fc2(x))
         return self.fc3(x)
 
-    def generate(self, mels, save_path, batched, target, overlap, mu_law, device=None):
-        """Generates audio from mel spectrograms.
-        Args:
-            device:  The device to use for the generation. If specified, should match `mels.device`
-                if `mels` is a Tensor. If `None` AND `mels` is not a tensor, it will prefer GPU over CPU.
-        """
-        if device is None:
-            if torch.is_tensor(mels):
-                device = mels.device
-            else:
-                # Prefer CUDA if its available for faster inference
-                device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        else:
-            if device is not None and torch.is_tensor(mels) and device != mels.device:
-                raise ValueError('`mels` was a Tensor, but the specified device was different!')
+    def generate(self, mels, save_path, batched, target, overlap, mu_law):
+        device = next(self.parameters()).device  # use same device as parameters
 
         mu_law = mu_law if self.mode == 'RAW' else False
 
