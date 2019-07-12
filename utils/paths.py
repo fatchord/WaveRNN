@@ -4,7 +4,7 @@ import os
 class Paths :
     def __init__(self, data_path, voc_id, tts_id) :
         # Data Paths
-        self.data = f'{data_path}/{voc_id}/'
+        self.data = f'{data_path}{voc_id}/'
         self.quant = f'{self.data}quant/'
         self.mel = f'{self.data}mel/'
         self.gta = f'{self.data}gta/'

@@ -162,9 +162,10 @@ class LSA(nn.Module):
         self.attention = None
 
     def init_attention(self, encoder_seq_proj) :
+        device = encoder_seq_proj.device
         b, t, c = encoder_seq_proj.size()
-        self.cumulative = torch.zeros(b, t).cuda()
-        self.attention = torch.zeros(b, t).cuda()
+        self.cumulative = torch.zeros(b, t, device=device)
+        self.attention = torch.zeros(b, t, device=device)
 
     def forward(self, encoder_seq_proj, query, t):
 
@@ -202,8 +203,10 @@ class Decoder(nn.Module) :
         self.res_rnn2 = nn.LSTMCell(lstm_dims, lstm_dims)
         self.mel_proj = nn.Linear(lstm_dims, n_mels * self.max_r, bias=False)
         
-    def zoneout(self, prev, current, p=0.1) :
-        mask = torch.zeros(prev.size()).bernoulli_(p).cuda()
+    def zoneout(self, prev, current, p=0.1):
+        device = prev.device
+        assert prev.device == current.device
+        mask = torch.zeros(prev.size(), device=device).bernoulli_(p)
         return prev * mask + current * (1 - mask)
     
     def forward(self, encoder_seq, encoder_seq_proj, prenet_in, 
@@ -289,7 +292,8 @@ class Tacotron(nn.Module) :
         return self.r.item()
 
     def forward(self, x, m, generate_gta=False) :
-
+        device = x.device
+        assert x.device == m.device
         self.step += 1
 
         if generate_gta :
@@ -304,21 +308,21 @@ class Tacotron(nn.Module) :
         batch_size, _, steps  = m.size()
     
         # Initialise all hidden states and pack into tuple
-        attn_hidden = torch.zeros(batch_size, self.decoder_dims).cuda()
-        rnn1_hidden = torch.zeros(batch_size, self.lstm_dims).cuda()
-        rnn2_hidden = torch.zeros(batch_size, self.lstm_dims).cuda()
+        attn_hidden = torch.zeros(batch_size, self.decoder_dims, device=device)
+        rnn1_hidden = torch.zeros(batch_size, self.lstm_dims, device=device)
+        rnn2_hidden = torch.zeros(batch_size, self.lstm_dims, device=device)
         hidden_states = (attn_hidden, rnn1_hidden, rnn2_hidden)
         
         # Initialise all lstm cell states and pack into tuple
-        rnn1_cell = torch.zeros(batch_size, self.lstm_dims).cuda()
-        rnn2_cell = torch.zeros(batch_size, self.lstm_dims).cuda()
+        rnn1_cell = torch.zeros(batch_size, self.lstm_dims, device=device)
+        rnn2_cell = torch.zeros(batch_size, self.lstm_dims, device=device)
         cell_states = (rnn1_cell, rnn2_cell)
         
         # <GO> Frame for start of decoder loop
-        go_frame = torch.zeros(batch_size, self.n_mels).cuda()
+        go_frame = torch.zeros(batch_size, self.n_mels, device=device)
         
         # Need an initial context vector
-        context_vec = torch.zeros(batch_size, self.decoder_dims).cuda()
+        context_vec = torch.zeros(batch_size, self.decoder_dims, device=device)
         
         # Project the encoder outputs to avoid 
         # unnecessary matmuls in the decoder loop
@@ -351,31 +355,45 @@ class Tacotron(nn.Module) :
             
         return mel_outputs, linear, attn_scores
     
-    def generate(self, x, steps=2000) :
-            
+    def generate(self, x, steps=2000, device=None):
+        """Generates spectrograms from the input.
+        Args:
+            device:  The device to use for the generation. If specified, should match `x.device`
+                if `x` is a Tensor. If `None` AND `x` is not a tensor, it will prefer GPU over CPU.
+        """
+        if device is None:
+            if torch.is_tensor(x):
+                device = x.device
+            else:
+                # Prefer CUDA if its available for faster inference
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        else:
+            if device is not None and torch.is_tensor(x) and device != x.device:
+                raise ValueError('`x` was a Tensor, but the specified device was different!')
+
         self.encoder.eval()
         self.postnet.eval()
         self.decoder.generating = True
         
         batch_size = 1
-        x = torch.LongTensor(x).unsqueeze(0).cuda()
+        x = torch.as_tensor(x, dtype=torch.int64, device=device).unsqueeze(0)
        
         # Need to initialise all hidden states and pack into tuple for tidyness
-        attn_hidden = torch.zeros(batch_size, self.decoder_dims).cuda()
-        rnn1_hidden = torch.zeros(batch_size, self.lstm_dims).cuda()
-        rnn2_hidden = torch.zeros(batch_size, self.lstm_dims).cuda()
+        attn_hidden = torch.zeros(batch_size, self.decoder_dims, device=device)
+        rnn1_hidden = torch.zeros(batch_size, self.lstm_dims, device=device)
+        rnn2_hidden = torch.zeros(batch_size, self.lstm_dims, device=device)
         hidden_states = (attn_hidden, rnn1_hidden, rnn2_hidden)
         
         # Need to initialise all lstm cell states and pack into tuple for tidyness
-        rnn1_cell = torch.zeros(batch_size, self.lstm_dims).cuda()
-        rnn2_cell = torch.zeros(batch_size, self.lstm_dims).cuda()
+        rnn1_cell = torch.zeros(batch_size, self.lstm_dims, device=device)
+        rnn2_cell = torch.zeros(batch_size, self.lstm_dims, device=device)
         cell_states = (rnn1_cell, rnn2_cell)
         
         # Need a <GO> Frame for start of decoder loop
-        go_frame = torch.zeros(batch_size, self.n_mels).cuda()
+        go_frame = torch.zeros(batch_size, self.n_mels, device=device)
         
         # Need an initial context vector
-        context_vec = torch.zeros(batch_size, self.decoder_dims).cuda()
+        context_vec = torch.zeros(batch_size, self.decoder_dims, device=device)
         
         # Project the encoder outputs to avoid 
         # unnecessary matmuls in the decoder loop
@@ -444,8 +462,9 @@ class Tacotron(nn.Module) :
             self.load(path)
             self.decoder.r = self.r.item()
 
-    def load(self, path):
-        self.load_state_dict(torch.load(path), strict=False)
+    def load(self, path, device='cpu'):
+        # because PyTorch places on CPU by default, we follow those semantics by using CPU as default.
+        self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
     def save(self, path):
         torch.save(self.state_dict(), path)

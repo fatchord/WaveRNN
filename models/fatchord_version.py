@@ -116,11 +116,13 @@ class WaveRNN(nn.Module):
         self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
         self.num_params()
 
-    def forward(self, x, mels) :
+    def forward(self, x, mels):
+        device = x.device
+        assert x.device == mels.device
         self.step += 1
         bsize = x.size(0)
-        h1 = torch.zeros(1, bsize, self.rnn_dims).cuda()
-        h2 = torch.zeros(1, bsize, self.rnn_dims).cuda()
+        h1 = torch.zeros(1, bsize, self.rnn_dims, device=device)
+        h2 = torch.zeros(1, bsize, self.rnn_dims, device=device)
         mels, aux = self.upsample(mels)
 
         aux_idx = [self.aux_dims * i for i in range(5)]
@@ -147,7 +149,21 @@ class WaveRNN(nn.Module):
         x = F.relu(self.fc2(x))
         return self.fc3(x)
 
-    def generate(self, mels, save_path, batched, target, overlap, mu_law):
+    def generate(self, mels, save_path, batched, target, overlap, mu_law, device=None):
+        """Generates audio from mel spectrograms.
+        Args:
+            device:  The device to use for the generation. If specified, should match `mels.device`
+                if `mels` is a Tensor. If `None` AND `mels` is not a tensor, it will prefer GPU over CPU.
+        """
+        if device is None:
+            if torch.is_tensor(mels):
+                device = mels.device
+            else:
+                # Prefer CUDA if its available for faster inference
+                device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        else:
+            if device is not None and torch.is_tensor(mels) and device != mels.device:
+                raise ValueError('`mels` was a Tensor, but the specified device was different!')
 
         mu_law = mu_law if self.mode == 'RAW' else False
 
@@ -159,7 +175,7 @@ class WaveRNN(nn.Module):
 
         with torch.no_grad():
 
-            mels = mels.cuda()
+            mels = torch.as_tensor(mels, device=device)
             wave_len = (mels.size(-1) - 1) * self.hop_length
             mels = self.pad_tensor(mels.transpose(1, 2), pad=self.pad, side='both')
             mels, aux = self.upsample(mels.transpose(1, 2))
@@ -170,9 +186,9 @@ class WaveRNN(nn.Module):
 
             b_size, seq_len, _ = mels.size()
 
-            h1 = torch.zeros(b_size, self.rnn_dims).cuda()
-            h2 = torch.zeros(b_size, self.rnn_dims).cuda()
-            x = torch.zeros(b_size, 1).cuda()
+            h1 = torch.zeros(b_size, self.rnn_dims, device=device)
+            h2 = torch.zeros(b_size, self.rnn_dims, device=device)
+            x = torch.zeros(b_size, 1, device=device)
 
             d = self.aux_dims
             aux_split = [aux[:, :, d * i:d * (i + 1)] for i in range(4)]
@@ -205,7 +221,7 @@ class WaveRNN(nn.Module):
                     sample = sample_from_discretized_mix_logistic(logits.unsqueeze(0).transpose(1, 2))
                     output.append(sample.view(-1))
                     # x = torch.FloatTensor([[sample]]).cuda()
-                    x = sample.transpose(0, 1).cuda()
+                    x = sample.transpose(0, 1)
 
                 elif self.mode == 'RAW' :
                     posterior = F.softmax(logits, dim=1)
@@ -262,7 +278,7 @@ class WaveRNN(nn.Module):
         # i.e., it won't generalise to other shapes/dims
         b, t, c = x.size()
         total = t + 2 * pad if side == 'both' else t + pad
-        padded = torch.zeros(b, total, c).cuda()
+        padded = torch.zeros(b, total, c, device=x.device)
         if side == 'before' or side == 'both':
             padded[:, pad:pad + t, :] = x
         elif side == 'after':
@@ -308,7 +324,7 @@ class WaveRNN(nn.Module):
             padding = target + 2 * overlap - remaining
             x = self.pad_tensor(x, padding, side='after')
 
-        folded = torch.zeros(num_folds, target + 2 * overlap, features).cuda()
+        folded = torch.zeros(num_folds, target + 2 * overlap, features, device=x.device)
 
         # Get the values for the folded tensor
         for i in range(num_folds):
@@ -382,14 +398,14 @@ class WaveRNN(nn.Module):
 
         return unfolded
 
-    def get_step(self) :
+    def get_step(self):
         return self.step.data.item()
 
     def checkpoint(self, path) :
         k_steps = self.get_step() // 1000
         self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
 
-    def log(self, path, msg) :
+    def log(self, path, msg):
         with open(path, 'a') as f:
             print(msg, file=f)
 
@@ -401,14 +417,15 @@ class WaveRNN(nn.Module):
             print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
 
-    def load(self, path) :
-        self.load_state_dict(torch.load(path), strict=False)
+    def load(self, path, device='cpu'):
+        # because PyTorch places on CPU by default, we follow those semantics by using CPU as default.
+        self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
-    def save(self, path) :
+    def save(self, path):
         torch.save(self.state_dict(), path)
 
     def num_params(self, print_out=True):
         parameters = filter(lambda p: p.requires_grad, self.parameters())
         parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
-        if print_out :
+        if print_out:
             print('Trainable Parameters: %.3fM' % parameters)

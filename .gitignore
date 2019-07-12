@@ -1,6 +1,9 @@
 # PyCharm files
 .idea
 
+# Mac files
+.DS_Store
+
 # Environments
 .env
 .venv

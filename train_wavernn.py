@@ -1,5 +1,6 @@
 import time
 import numpy as np
+import torch
 from torch import optim
 import torch.nn.functional as F
 from utils.display import stream, simple_table
@@ -12,7 +13,7 @@ from utils.paths import Paths
 import argparse
 
 
-def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_steps):
+def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_steps, device):
 
     for p in optimiser.param_groups: p['lr'] = lr
 
@@ -25,7 +26,7 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
         running_loss = 0.
 
         for i, (x, y, m) in enumerate(train_set, 1):
-            x, m, y = x.cuda(), m.cuda(), y.cuda()
+            x, m, y = x.to(device), m.to(device), y.to(device)
 
             y_hat = model(x, m)
 
@@ -72,6 +73,8 @@ if __name__ == "__main__" :
     parser.add_argument('--batch_size', '-b', type=int, help='[int] override hparams.py batch size')
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
     parser.add_argument('--gta', '-g', action='store_true', help='train wavernn on GTA features')
+    parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
+    parser.set_defaults(force_cpu=False)
     parser.set_defaults(lr=hp.voc_lr)
     parser.set_defaults(batch_size=hp.voc_batch_size)
     args = parser.parse_args()
@@ -80,6 +83,11 @@ if __name__ == "__main__" :
     force_train = args.force_train
     train_gta = args.gta
     lr = args.lr
+    
+    if not args.force_cpu and torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
 
     print('\nInitialising Model...\n')
 
@@ -95,7 +103,7 @@ if __name__ == "__main__" :
                         res_blocks=hp.voc_res_blocks,
                         hop_length=hp.hop_length,
                         sample_rate=hp.sample_rate,
-                        mode=hp.voc_mode).cuda()
+                        mode=hp.voc_mode).to(device)
 
     # Check to make sure the hop length is correctly factorised
     assert np.cumprod(hp.voc_upsample_factors)[-1] == hp.hop_length
@@ -118,7 +126,7 @@ if __name__ == "__main__" :
 
     loss_func = F.cross_entropy if voc_model.mode == 'RAW' else discretized_mix_logistic_loss
 
-    voc_train_loop(voc_model, loss_func, optimiser, train_set, test_set, lr, total_steps)
+    voc_train_loop(voc_model, loss_func, optimiser, train_set, test_set, lr, total_steps, device)
 
     print('Training Complete.')
     print('To continue training increase voc_total_steps in hparams.py or use --force_train')
