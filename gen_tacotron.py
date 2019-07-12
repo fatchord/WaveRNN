@@ -8,7 +8,7 @@ import argparse
 from utils.text import text_to_sequence
 from utils.display import save_attention, simple_table
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='TTS Generator')
@@ -73,10 +73,10 @@ if __name__ == "__main__" :
     tts_restore_path = weights_path if weights_path else paths.tts_latest_weights
     tts_model.restore(tts_restore_path)
 
-    if input_text :
+    if input_text:
         inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]
-    else :
-        with open('sentences.txt') as f :
+    else:
+        with open('sentences.txt') as f:
             inputs = [text_to_sequence(l.strip(), hp.tts_cleaner_names) for l in f]
 
     voc_k = voc_model.get_step() // 1000
@@ -89,17 +89,17 @@ if __name__ == "__main__" :
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
 
-    for i, x in enumerate(inputs, 1) :
+    for i, x in enumerate(inputs, 1):
 
         print(f'\n| Generating {i}/{len(inputs)}')
         _, m, attention = tts_model.generate(x)
 
-        if input_text :
+        if input_text:
             save_path = f'{paths.tts_output}__input_{input_text[:10]}_{tts_k}k.wav'
-        else :
+        else:
             save_path = f'{paths.tts_output}{i}_batched{str(batched)}_{tts_k}k.wav'
 
-        if save_attn : save_attention(attention, save_path)
+        if save_attn: save_attention(attention, save_path)
 
         m = torch.tensor(m).unsqueeze(0)
         m = (m + 4) / 8

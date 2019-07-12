@@ -7,13 +7,13 @@ import torch
 import argparse
 
 
-def gen_testset(model, test_set, samples, batched, target, overlap, save_path) :
+def gen_testset(model, test_set, samples, batched, target, overlap, save_path):
 
     k = model.get_step() // 1000
 
     for i, (m, x) in enumerate(test_set, 1):
 
-        if i > samples : break
+        if i > samples: break
 
         print('\n| Generating: %i/%i' % (i, samples))
 
@@ -21,9 +21,9 @@ def gen_testset(model, test_set, samples, batched, target, overlap, save_path) :
 
         bits = 16 if hp.voc_mode == 'MOL' else hp.bits
 
-        if hp.mu_law and hp.voc_mode != 'MOL' :
+        if hp.mu_law and hp.voc_mode != 'MOL':
             x = decode_mu_law(x, 2**bits, from_labels=True)
-        else :
+        else:
             x = label_2_float(x, bits)
 
         save_wav(x, f'{save_path}{k}k_steps_{i}_target.wav')
@@ -34,7 +34,7 @@ def gen_testset(model, test_set, samples, batched, target, overlap, save_path) :
         _ = model.generate(m, save_str, batched, target, overlap, hp.mu_law)
 
 
-def gen_from_file(model, load_path, save_path, batched, target, overlap) :
+def gen_from_file(model, load_path, save_path, batched, target, overlap):
 
     k = model.get_step() // 1000
     file_name = load_path.split('/')[-1]
@@ -107,9 +107,9 @@ if __name__ == "__main__":
 
     _, test_set = get_vocoder_datasets(paths.data, 1, gta)
 
-    if file :
+    if file:
         gen_from_file(model, file, paths.voc_output, batched, target, overlap)
-    else :
+    else:
         gen_testset(model, test_set, samples, batched, target, overlap, paths.voc_output)
 
     print('\n\nExiting...\n')

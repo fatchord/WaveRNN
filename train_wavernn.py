@@ -30,10 +30,10 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
 
             y_hat = model(x, m)
 
-            if model.mode == 'RAW' :
+            if model.mode == 'RAW':
                 y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
 
-            elif model.mode == 'MOL' :
+            elif model.mode == 'MOL':
                 y = y.float()
 
             y = y.unsqueeze(-1)
@@ -52,7 +52,7 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
             step = model.get_step()
             k = step // 1000
 
-            if step % hp.voc_checkpoint_every == 0 :
+            if step % hp.voc_checkpoint_every == 0:
                 gen_testset(model, test_set, hp.voc_gen_at_checkpoint, hp.voc_gen_batched,
                             hp.voc_target, hp.voc_overlap, paths.voc_output)
                 model.checkpoint(paths.voc_checkpoints)
@@ -65,7 +65,7 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
         print(' ')
 
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='Train WaveRNN Vocoder')

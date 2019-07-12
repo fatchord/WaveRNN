@@ -21,7 +21,7 @@ zip_ref.extractall('quick_start/tts_weights/')
 zip_ref.close()
 
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='TTS Generator')
@@ -88,10 +88,10 @@ if __name__ == "__main__" :
 
     tts_model.restore('quick_start/tts_weights/latest_weights.pyt')
 
-    if input_text :
+    if input_text:
         inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]
-    else :
-        with open('sentences.txt') as f :
+    else:
+        with open('sentences.txt') as f:
             inputs = [text_to_sequence(l.strip(), hp.tts_cleaner_names) for l in f]
 
     voc_k = voc_model.get_step() // 1000
@@ -105,14 +105,14 @@ if __name__ == "__main__" :
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
 
-    for i, x in enumerate(inputs, 1) :
+    for i, x in enumerate(inputs, 1):
 
         print(f'\n| Generating {i}/{len(inputs)}')
         _, m, attention = tts_model.generate(x, device=device)
 
-        if input_text :
+        if input_text:
             save_path = f'quick_start/__input_{input_text[:10]}_{tts_k}k.wav'
-        else :
+        else:
             save_path = f'quick_start/{i}_batched{str(batched)}_{tts_k}k.wav'
 
         save_attention(attention, save_path)

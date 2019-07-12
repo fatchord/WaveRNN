@@ -93,11 +93,11 @@ class WaveRNN(nn.Module):
         super().__init__()
         self.mode = mode
         self.pad = pad
-        if self.mode == 'RAW' :
+        if self.mode == 'RAW':
             self.n_classes = 2 ** bits
-        elif self.mode == 'MOL' :
+        elif self.mode == 'MOL':
             self.n_classes = 30
-        else :
+        else:
             RuntimeError("Unknown model mode value - ", self.mode)
 
         self.rnn_dims = rnn_dims
@@ -223,7 +223,7 @@ class WaveRNN(nn.Module):
                     # x = torch.FloatTensor([[sample]]).cuda()
                     x = sample.transpose(0, 1)
 
-                elif self.mode == 'RAW' :
+                elif self.mode == 'RAW':
                     posterior = F.softmax(logits, dim=1)
                     distrib = torch.distributions.Categorical(posterior)
 
@@ -233,7 +233,7 @@ class WaveRNN(nn.Module):
                 else:
                     raise RuntimeError("Unknown model mode value - ", self.mode)
 
-                if i % 100 == 0 : self.gen_display(i, seq_len, b_size, start)
+                if i % 100 == 0: self.gen_display(i, seq_len, b_size, start)
 
         output = torch.stack(output).transpose(0, 1)
         output = output.cpu().numpy()
@@ -244,7 +244,7 @@ class WaveRNN(nn.Module):
         else:
             output = output[0]
 
-        if mu_law :
+        if mu_law:
             output = decode_mu_law(output, self.n_classes, False)
 
         # Fade-out at the end to avoid signal cutting out suddenly
@@ -401,7 +401,7 @@ class WaveRNN(nn.Module):
     def get_step(self):
         return self.step.data.item()
 
-    def checkpoint(self, path) :
+    def checkpoint(self, path):
         k_steps = self.get_step() // 1000
         self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
 
@@ -410,7 +410,7 @@ class WaveRNN(nn.Module):
             print(msg, file=f)
 
     def restore(self, path):
-        if not os.path.exists(path) :
+        if not os.path.exists(path):
             print('\nNew WaveRNN Training Session...\n')
             self.save(path)
         else:

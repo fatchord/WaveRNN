@@ -10,7 +10,7 @@ from models.tacotron import Tacotron
 import argparse
 
 
-def np_now(x) : return x.detach().cpu().numpy()
+def np_now(x): return x.detach().cpu().numpy()
 
 
 def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
@@ -42,7 +42,7 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
             loss.backward()
 
-            if hp.tts_clip_grad_norm :
+            if hp.tts_clip_grad_norm:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
 
             optimizer.step()
@@ -54,10 +54,10 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
             avg_loss = running_loss / i
 
-            if step % hp.tts_checkpoint_every == 0 :
+            if step % hp.tts_checkpoint_every == 0:
                 model.checkpoint(paths.tts_checkpoints)
 
-            if attn_example in ids :
+            if attn_example in ids:
                 idx = ids.index(attn_example)
                 save_attention(attention[idx][:, :160], f'{paths.tts_attention}{step}')
                 save_spectrogram(np_now(m2_hat[idx]), f'{paths.tts_mel_plot}{step}', 600)
@@ -78,11 +78,11 @@ def create_gta_features(model, train_set, save_path):
 
         x, mels = x.cuda(), mels.cuda()
 
-        with torch.no_grad() : _, gta, _ = model(x, mels)
+        with torch.no_grad(): _, gta, _ = model(x, mels)
 
         gta = gta.cpu().numpy()
 
-        for j in range(len(ids)) :
+        for j in range(len(ids)):
             mel = gta[j][:, :mel_lens[j]]
             mel = (mel + 4) / 8
             id = ids[j]
@@ -93,7 +93,7 @@ def create_gta_features(model, train_set, save_path):
         stream(msg)
 
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='Train Tacotron TTS')
@@ -132,13 +132,13 @@ if __name__ == "__main__" :
 
     current_step = model.get_step()
 
-    if not force_gta :
+    if not force_gta:
 
-        for session in hp.tts_schedule :
+        for session in hp.tts_schedule:
 
             r, lr, max_step, batch_size = session
 
-            if current_step < max_step :
+            if current_step < max_step:
 
                 train_set, attn_example = get_tts_dataset(paths.data, batch_size, r)
 
