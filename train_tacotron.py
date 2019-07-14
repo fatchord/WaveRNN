@@ -10,10 +10,11 @@ from models.tacotron import Tacotron
 import argparse
 
 
-def np_now(x) : return x.detach().cpu().numpy()
+def np_now(x): return x.detach().cpu().numpy()
 
 
 def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
+    device = next(model.parameters()).device  # use same device as model parameters
 
     for p in optimizer.param_groups: p['lr'] = lr
 
@@ -29,7 +30,7 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
             optimizer.zero_grad()
 
-            x, m = x.cuda(), m.cuda()
+            x, m = x.to(device), m.to(device)
 
             m1_hat, m2_hat, attention = model(x, m)
 
@@ -42,7 +43,7 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
             loss.backward()
 
-            if hp.tts_clip_grad_norm :
+            if hp.tts_clip_grad_norm:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
 
             optimizer.step()
@@ -54,10 +55,10 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
             avg_loss = running_loss / i
 
-            if step % hp.tts_checkpoint_every == 0 :
+            if step % hp.tts_checkpoint_every == 0:
                 model.checkpoint(paths.tts_checkpoints)
 
-            if attn_example in ids :
+            if attn_example in ids:
                 idx = ids.index(attn_example)
                 save_attention(attention[idx][:, :160], f'{paths.tts_attention}{step}')
                 save_spectrogram(np_now(m2_hat[idx]), f'{paths.tts_mel_plot}{step}', 600)
@@ -71,18 +72,19 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
 
 def create_gta_features(model, train_set, save_path):
+    device = next(model.parameters()).device  # use same device as model parameters
 
     iters = len(train_set)
 
     for i, (x, mels, ids, mel_lens) in enumerate(train_set, 1):
 
-        x, mels = x.cuda(), mels.cuda()
+        x, mels = x.to(device), mels.to(device)
 
-        with torch.no_grad() : _, gta, _ = model(x, mels)
+        with torch.no_grad(): _, gta, _ = model(x, mels)
 
         gta = gta.cpu().numpy()
 
-        for j in range(len(ids)) :
+        for j in range(len(ids)):
             mel = gta[j][:, :mel_lens[j]]
             mel = (mel + 4) / 8
             id = ids[j]
@@ -93,16 +95,23 @@ def create_gta_features(model, train_set, save_path):
         stream(msg)
 
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='Train Tacotron TTS')
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
     parser.add_argument('--force_gta', '-g', action='store_true', help='Force the model to create GTA features')
+    parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
     args = parser.parse_args()
 
     force_train = args.force_train
     force_gta = args.force_gta
+
+    if not args.force_cpu and torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    print('Using device:', device)
 
     print('\nInitialising Tacotron Model...\n')
 
@@ -118,7 +127,7 @@ if __name__ == "__main__" :
                      lstm_dims=hp.tts_lstm_dims,
                      postnet_K=hp.tts_postnet_K,
                      num_highways=hp.tts_num_highways,
-                     dropout=hp.tts_dropout).cuda()
+                     dropout=hp.tts_dropout).to(device=device)
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
@@ -132,13 +141,13 @@ if __name__ == "__main__" :
 
     current_step = model.get_step()
 
-    if not force_gta :
+    if not force_gta:
 
-        for session in hp.tts_schedule :
+        for session in hp.tts_schedule:
 
             r, lr, max_step, batch_size = session
 
-            if current_step < max_step :
+            if current_step < max_step:
 
                 train_set, attn_example = get_tts_dataset(paths.data, batch_size, r)
 

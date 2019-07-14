@@ -19,21 +19,21 @@ extension = args.extension
 path = args.path
 
 
-def convert_file(path) :
+def convert_file(path):
     y = load_wav(path)
     peak = np.abs(y).max()
     if hp.peak_norm or peak > 1.0:
         y /= peak
     mel = melspectrogram(y)
-    if hp.voc_mode == 'RAW' :
+    if hp.voc_mode == 'RAW':
         quant = encode_mu_law(y, mu=2**hp.bits) if hp.mu_law else float_2_label(y, bits=hp.bits)
-    elif hp.voc_mode == 'MOL' :
+    elif hp.voc_mode == 'MOL':
         quant = float_2_label(y, bits=16)
 
     return mel.astype(np.float32), quant.astype(np.int64)
 
 
-def process_wav(path) :
+def process_wav(path):
     id = path.split('/')[-1][:-4]
     m, x = convert_file(path)
     np.save(f'{paths.mel}{id}.npy', m, allow_pickle=False)
@@ -46,14 +46,14 @@ paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
 print(f'\n{len(wav_files)} {extension[1:]} files found in "{path}"\n')
 
-if len(wav_files) == 0 :
+if len(wav_files) == 0:
 
     print('Please point wav_path in hparams.py to your dataset,')
     print('or use the --path option.\n')
 
-else :
+else:
 
-    if not hp.ignore_tts :
+    if not hp.ignore_tts:
 
         text_dict = ljspeech(path)
 

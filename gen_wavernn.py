@@ -7,13 +7,13 @@ import torch
 import argparse
 
 
-def gen_testset(model, test_set, samples, batched, target, overlap, save_path) :
+def gen_testset(model, test_set, samples, batched, target, overlap, save_path):
 
     k = model.get_step() // 1000
 
     for i, (m, x) in enumerate(test_set, 1):
 
-        if i > samples : break
+        if i > samples: break
 
         print('\n| Generating: %i/%i' % (i, samples))
 
@@ -21,9 +21,9 @@ def gen_testset(model, test_set, samples, batched, target, overlap, save_path) :
 
         bits = 16 if hp.voc_mode == 'MOL' else hp.bits
 
-        if hp.mu_law and hp.voc_mode != 'MOL' :
+        if hp.mu_law and hp.voc_mode != 'MOL':
             x = decode_mu_law(x, 2**bits, from_labels=True)
-        else :
+        else:
             x = label_2_float(x, bits)
 
         save_wav(x, f'{save_path}{k}k_steps_{i}_target.wav')
@@ -34,7 +34,7 @@ def gen_testset(model, test_set, samples, batched, target, overlap, save_path) :
         _ = model.generate(m, save_str, batched, target, overlap, hp.mu_law)
 
 
-def gen_from_file(model, load_path, save_path, batched, target, overlap) :
+def gen_from_file(model, load_path, save_path, batched, target, overlap):
 
     k = model.get_step() // 1000
     file_name = load_path.split('/')[-1]
@@ -62,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument('--file', '-f', type=str, help='[string/path] for testing a wav outside dataset')
     parser.add_argument('--weights', '-w', type=str, help='[string/path] checkpoint file to load weights from')
     parser.add_argument('--gta', '-g', dest='use_gta', action='store_true', help='Generate from GTA testset')
+    parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
 
     parser.set_defaults(batched=hp.voc_gen_batched)
     parser.set_defaults(samples=hp.voc_gen_at_checkpoint)
@@ -80,6 +81,12 @@ if __name__ == "__main__":
     file = args.file
     gta = args.gta
 
+    if not args.force_cpu and torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    print('Using device:', device)
+
     print('\nInitialising Model...\n')
 
     model = WaveRNN(rnn_dims=hp.voc_rnn_dims,
@@ -93,7 +100,7 @@ if __name__ == "__main__":
                     res_blocks=hp.voc_res_blocks,
                     hop_length=hp.hop_length,
                     sample_rate=hp.sample_rate,
-                    mode=hp.voc_mode).cuda()
+                    mode=hp.voc_mode).to(device)
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
@@ -107,9 +114,9 @@ if __name__ == "__main__":
 
     _, test_set = get_vocoder_datasets(paths.data, 1, gta)
 
-    if file :
+    if file:
         gen_from_file(model, file, paths.voc_output, batched, target, overlap)
-    else :
+    else:
         gen_testset(model, test_set, samples, batched, target, overlap, paths.voc_output)
 
     print('\n\nExiting...\n')

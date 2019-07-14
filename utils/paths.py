@@ -1,10 +1,10 @@
 import os
 
 
-class Paths :
-    def __init__(self, data_path, voc_id, tts_id) :
+class Paths:
+    def __init__(self, data_path, voc_id, tts_id):
         # Data Paths
-        self.data = f'{data_path}/{voc_id}/'
+        self.data = f'{data_path}{voc_id}/'
         self.quant = f'{self.data}quant/'
         self.mel = f'{self.data}mel/'
         self.gta = f'{self.data}gta/'
@@ -24,7 +24,7 @@ class Paths :
         self.tts_mel_plot = f'{self.tts_checkpoints}/mel_plots/'
         self.create_paths()
 
-    def create_paths(self) :
+    def create_paths(self):
         os.makedirs(self.data, exist_ok=True)
         os.makedirs(self.quant, exist_ok=True)
         os.makedirs(self.mel, exist_ok=True)

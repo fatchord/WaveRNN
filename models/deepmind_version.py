@@ -4,8 +4,8 @@ import torch.nn.functional as F
 from utils.display import *
 from utils.dsp import *
 
-class WaveRNN(nn.Module) :
-    def __init__(self, hidden_size=896, quantisation=256) :
+class WaveRNN(nn.Module):
+    def __init__(self, hidden_size=896, quantisation=256):
         super(WaveRNN, self).__init__()
         
         self.hidden_size = hidden_size
@@ -33,7 +33,7 @@ class WaveRNN(nn.Module) :
         self.num_params()
 
         
-    def forward(self, prev_y, prev_hidden, current_coarse) :
+    def forward(self, prev_y, prev_hidden, current_coarse):
         
         # Main matmul - the projection is split 3 ways
         R_hidden = self.R(prev_hidden)
@@ -71,9 +71,10 @@ class WaveRNN(nn.Module) :
         return out_coarse, out_fine, hidden
     
         
-    def generate(self, seq_len) :
-        
-        with torch.no_grad() :
+    def generate(self, seq_len):
+        device = next(self.parameters()).device  # use same device as parameters
+
+        with torch.no_grad():
             
             # First split up the biases for the gates 
             b_coarse_u, b_fine_u = torch.split(self.bias_u, self.split_size)
@@ -84,17 +85,17 @@ class WaveRNN(nn.Module) :
             c_outputs, f_outputs = [], []
 
             # Some initial inputs
-            out_coarse = torch.LongTensor([0]).cuda()
-            out_fine = torch.LongTensor([0]).cuda()
+            out_coarse = torch.tensor([0], dtype=torch.long, device=device)
+            out_fine = torch.tensor([0], dtype=torch.long, device=device)
 
             # We'll meed a hidden state
-            hidden = self.init_hidden()
+            hidden = self.get_initial_hidden()
 
             # Need a clock for display
             start = time.time()
 
             # Loop for generation
-            for i in range(seq_len) :
+            for i in range(seq_len):
 
                 # Split into two hidden states
                 hidden_coarse, hidden_fine = \
@@ -162,10 +163,11 @@ class WaveRNN(nn.Module) :
         
         return output, coarse, fine
 
-    def init_hidden(self, batch_size=1) :
-        return torch.zeros(batch_size, self.hidden_size).cuda()
+    def get_initial_hidden(self, batch_size=1):
+        device = next(self.parameters()).device  # use same device as parameters
+        return torch.zeros(batch_size, self.hidden_size, device=device)
     
-    def num_params(self) :
+    def num_params(self):
         parameters = filter(lambda p: p.requires_grad, self.parameters())
         parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
         print('Trainable Parameters: %.3f million' % parameters)

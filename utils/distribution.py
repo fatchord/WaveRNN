@@ -108,7 +108,7 @@ def sample_from_discretized_mix_logistic(y, log_scale_min=None):
     _, argmax = temp.max(dim=-1)
 
     # (B, T) -> (B, T, nr_mix)
-    one_hot = to_one_hot(argmax, nr_mix)
+    one_hot = F.one_hot(argmax, nr_mix).float()
     # select logistic parameters
     means = torch.sum(y[:, :, nr_mix:2 * nr_mix] * one_hot, dim=-1)
     log_scales = torch.clamp(torch.sum(
@@ -122,11 +122,11 @@ def sample_from_discretized_mix_logistic(y, log_scale_min=None):
 
     return x
 
-
+'''
 def to_one_hot(tensor, n, fill_with=1.):
     # we perform one hot encore with respect to the last axis
     one_hot = torch.FloatTensor(tensor.size() + (n,)).zero_()
     if tensor.is_cuda:
         one_hot = one_hot.cuda()
     one_hot.scatter_(len(tensor.size()), tensor.unsqueeze(-1), fill_with)
-    return one_hot
+    return one_hot'''

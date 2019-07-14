@@ -21,7 +21,7 @@ zip_ref.extractall('quick_start/tts_weights/')
 zip_ref.close()
 
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='TTS Generator')
@@ -30,6 +30,7 @@ if __name__ == "__main__" :
     parser.add_argument('--unbatched', '-u', dest='batched', action='store_false', help='Slower Unbatched Generation (better quality)')
     parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
+    parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
     parser.set_defaults(batched=hp.voc_gen_batched)
     parser.set_defaults(target=hp.voc_target)
     parser.set_defaults(overlap=hp.voc_overlap)
@@ -43,6 +44,11 @@ if __name__ == "__main__" :
     input_text = args.input_text
     weights_path = args.weights_path
 
+    if not args.force_cpu and torch.cuda.is_available():
+        device = torch.device('cuda')
+    else:
+        device = torch.device('cpu')
+    print('Using device:', device)
 
     print('\nInitialising WaveRNN Model...\n')
 
@@ -58,7 +64,7 @@ if __name__ == "__main__" :
                         res_blocks=hp.voc_res_blocks,
                         hop_length=hp.hop_length,
                         sample_rate=hp.sample_rate,
-                        mode='MOL').cuda()
+                        mode='MOL').to(device)
 
     voc_model.restore('quick_start/voc_weights/latest_weights.pyt')
 
@@ -76,15 +82,15 @@ if __name__ == "__main__" :
                          lstm_dims=hp.tts_lstm_dims,
                          postnet_K=hp.tts_postnet_K,
                          num_highways=hp.tts_num_highways,
-                         dropout=hp.tts_dropout).cuda()
+                         dropout=hp.tts_dropout).to(device)
 
 
     tts_model.restore('quick_start/tts_weights/latest_weights.pyt')
 
-    if input_text :
+    if input_text:
         inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]
-    else :
-        with open('sentences.txt') as f :
+    else:
+        with open('sentences.txt') as f:
             inputs = [text_to_sequence(l.strip(), hp.tts_cleaner_names) for l in f]
 
     voc_k = voc_model.get_step() // 1000
@@ -98,17 +104,17 @@ if __name__ == "__main__" :
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
 
-    for i, x in enumerate(inputs, 1) :
+    for i, x in enumerate(inputs, 1):
 
         print(f'\n| Generating {i}/{len(inputs)}')
         _, m, attention = tts_model.generate(x)
 
-        if input_text :
+        if input_text:
             save_path = f'quick_start/__input_{input_text[:10]}_{tts_k}k.wav'
-        else :
+        else:
             save_path = f'quick_start/{i}_batched{str(batched)}_{tts_k}k.wav'
 
-        save_attention(attention, save_path)
+        # save_attention(attention, save_path)
 
         m = torch.tensor(m).unsqueeze(0)
         m = (m + 4) / 8
