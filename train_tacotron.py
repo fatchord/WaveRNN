@@ -8,6 +8,8 @@ from utils.text.symbols import symbols
 from utils.paths import Paths
 from models.tacotron import Tacotron
 import argparse
+from utils import data_parallel_workaround
+import os
 
 
 def np_now(x): return x.detach().cpu().numpy()
@@ -32,7 +34,11 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
             x, m = x.to(device), m.to(device)
 
-            m1_hat, m2_hat, attention = model(x, m)
+            # Parallelize model onto GPUS using workaround due to python bug
+            if device.type == 'cuda' and torch.cuda.device_count() > 1:
+                m1_hat, m2_hat, attention = data_parallel_workaround(model, x, m)
+            else:
+                m1_hat, m2_hat, attention = model(x, m) 
 
             m1_loss = F.l1_loss(m1_hat, m)
             m2_loss = F.l1_loss(m2_hat, m)
@@ -42,9 +48,10 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
             running_loss += loss.item()
 
             loss.backward()
-
-            if hp.tts_clip_grad_norm:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
+            if hp.tts_clip_grad_norm is not None:
+                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
+                if np.isnan(grad_norm):
+                    print('grad_norm was NaN!')
 
             optimizer.step()
 
@@ -56,7 +63,7 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
             avg_loss = running_loss / i
 
             if step % hp.tts_checkpoint_every == 0:
-                model.checkpoint(paths.tts_checkpoints)
+                model.checkpoint(paths.tts_checkpoints, optimizer)
 
             if attn_example in ids:
                 idx = ids.index(attn_example)
@@ -66,6 +73,9 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
             stream(msg)
 
+        # Must save latest optimizer state to ensure that resuming training
+        # doesn't produce artifacts
+        torch.save(optimizer.state_dict(), paths.tts_latest_optim)
         model.save(paths.tts_latest_weights)
         model.log(paths.tts_log, msg)
         print(' ')
@@ -109,6 +119,10 @@ if __name__ == "__main__":
 
     if not args.force_cpu and torch.cuda.is_available():
         device = torch.device('cuda')
+        for session in hp.tts_schedule:
+            _, _, _, batch_size = session
+            if batch_size % torch.cuda.device_count() != 0:
+                raise ValueError('`batch_size` must be evenly divisible by n_gpus!')
     else:
         device = torch.device('cpu')
     print('Using device:', device)
@@ -137,7 +151,10 @@ if __name__ == "__main__":
 
     # model.set_r(hp.tts_r)
 
-    optimiser = optim.Adam(model.parameters())
+    optimizer = optim.Adam(model.parameters())
+    if os.path.isfile(paths.tts_latest_optim):
+        print(f'Loading Optimizer State: "{paths.tts_latest_optim}"')
+        optimizer.load_state_dict(torch.load(paths.tts_latest_optim))
 
     current_step = model.get_step()
 
@@ -160,7 +177,7 @@ if __name__ == "__main__":
                               ('Learning Rate', lr),
                               ('Outputs/Step (r)', model.get_r())])
 
-                tts_train_loop(model, optimiser, train_set, lr, training_steps, attn_example)
+                tts_train_loop(model, optimizer, train_set, lr, training_steps, attn_example)
 
         print('Training Complete.')
         print('To continue training increase tts_total_steps in hparams.py or use --force_train\n')

@@ -204,8 +204,7 @@ class Decoder(nn.Module):
         self.mel_proj = nn.Linear(lstm_dims, n_mels * self.max_r, bias=False)
         
     def zoneout(self, prev, current, p=0.1):
-        device = prev.device
-        assert prev.device == current.device
+        device = next(self.parameters()).device  # Use same device as parameters
         mask = torch.zeros(prev.size(), device=device).bernoulli_(p)
         return prev * mask + current * (1 - mask)
     
@@ -279,10 +278,8 @@ class Tacotron(nn.Module):
         self.init_model()
         self.num_params()
 
-        # Unfortunately I have to put these settings into params in order to save
-        # if anyone knows a better way of doing this please open an issue in the repo
-        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
-        self.r = nn.Parameter(torch.tensor(0).long(), requires_grad=False)
+        self.register_buffer('step', torch.zeros(1, dtype=torch.long))
+        self.register_buffer('r', torch.tensor(0, dtype=torch.long))
 
     def set_r(self, r):
         self.r.data = torch.tensor(r)
@@ -430,11 +427,16 @@ class Tacotron(nn.Module):
         return self.step.data.item()
 
     def reset_step(self):
-        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
+        assert self.step is not None
+        # assignment to parameters or buffers is overloaded, updates internal dict entry
+        self.step = torch.zeros(1, dtype=torch.long)
 
-    def checkpoint(self, path):
+    def checkpoint(self, path, optimizer):
+        # Optimizer can be given as an argument because checkpoint function is
+        # only useful in context of already existing training process.
         k_steps = self.get_step() // 1000
         self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
+        torch.save(optimizer.get_state(), f'{path}/checkpoint_{k_steps}k_steps_optim.pyt')
 
     def log(self, path, msg):
         with open(path, 'a') as f:
@@ -449,11 +451,15 @@ class Tacotron(nn.Module):
             self.load(path)
             self.decoder.r = self.r.item()
 
-    def load(self, path, device='cpu'):
-        # because PyTorch places on CPU by default, we follow those semantics by using CPU as default.
+    def load(self, path):
+        # Use device of model params as location for loaded state
+        device = next(self.parameters()).device
         self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
     def save(self, path):
+        # No optimizer argument because saving a model should not include data
+        # only relevant in the training process - it should only be properties
+        # of the model itself. Let caller take care of saving optimzier state.
         torch.save(self.state_dict(), path)
 
     def num_params(self, print_out=True):
@@ -461,3 +467,4 @@ class Tacotron(nn.Module):
         parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
         if print_out:
             print('Trainable Parameters: %.3fM' % parameters)
+        return parameters

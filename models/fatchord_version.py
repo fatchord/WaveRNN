@@ -113,7 +113,7 @@ class WaveRNN(nn.Module):
         self.fc2 = nn.Linear(fc_dims + self.aux_dims, fc_dims)
         self.fc3 = nn.Linear(fc_dims, self.n_classes)
 
-        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
+        self.register_buffer('step', torch.zeros(1, dtype=torch.long))
         self.num_params()
 
     def forward(self, x, mels):
@@ -388,9 +388,12 @@ class WaveRNN(nn.Module):
     def get_step(self):
         return self.step.data.item()
 
-    def checkpoint(self, path):
+    def checkpoint(self, path, optimizer):
+        # Optimizer can be given as an argument because checkpoint function is
+        # only useful in context of already existing training process.
         k_steps = self.get_step() // 1000
         self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
+        torch.save(optimizer.get_state(), f'{path}/checkpoint_{k_steps}k_steps_optim.pyt')
 
     def log(self, path, msg):
         with open(path, 'a') as f:
@@ -404,11 +407,15 @@ class WaveRNN(nn.Module):
             print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
 
-    def load(self, path, device='cpu'):
-        # because PyTorch places on CPU by default, we follow those semantics by using CPU as default.
+    def load(self, path):
+        # Use device of model params as location for loaded state
+        device = next(self.parameters()).device
         self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
     def save(self, path):
+        # No optimizer argument because saving a model should not include data
+        # only relevant in the training process - it should only be properties
+        # of the model itself. Let caller take care of saving optimzier state.
         torch.save(self.state_dict(), path)
 
     def num_params(self, print_out=True):
@@ -416,3 +423,4 @@ class WaveRNN(nn.Module):
         parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
         if print_out:
             print('Trainable Parameters: %.3fM' % parameters)
+        return parameters

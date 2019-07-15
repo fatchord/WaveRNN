@@ -11,11 +11,15 @@ from models.fatchord_version import WaveRNN
 from gen_wavernn import gen_testset
 from utils.paths import Paths
 import argparse
+from utils import data_parallel_workaround
+import os
 
 
-def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_steps, device):
-
-    for p in optimiser.param_groups: p['lr'] = lr
+def voc_train_loop(model, loss_func, optimizer, train_set, test_set, lr, total_steps):
+    # Use same device as model parameters
+    device = next(model.parameters()).device
+    
+    for p in optimizer.param_groups: p['lr'] = lr
 
     total_iters = len(train_set)
     epochs = (total_steps - model.get_step()) // total_iters + 1
@@ -27,8 +31,12 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
 
         for i, (x, y, m) in enumerate(train_set, 1):
             x, m, y = x.to(device), m.to(device), y.to(device)
-
-            y_hat = model(x, m)
+        
+            # Parallelize model onto GPUS using workaround due to python bug
+            if device.type == 'cuda' and torch.cuda.device_count() > 1:
+                y_hat = data_parallel_workaround(model, x, m)
+            else:
+                y_hat = model(x, m)
 
             if model.mode == 'RAW':
                 y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
@@ -41,9 +49,13 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
 
             loss = loss_func(y_hat, y)
 
-            optimiser.zero_grad()
+            optimizer.zero_grad()
             loss.backward()
-            optimiser.step()
+            if hp.voc_clip_grad_norm is not None:
+                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.voc_clip_grad_norm)
+                if np.isnan(grad_norm):
+                    print('grad_norm was NaN!')
+            optimizer.step()
             running_loss += loss.item()
 
             speed = i / (time.time() - start)
@@ -55,11 +67,14 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
             if step % hp.voc_checkpoint_every == 0:
                 gen_testset(model, test_set, hp.voc_gen_at_checkpoint, hp.voc_gen_batched,
                             hp.voc_target, hp.voc_overlap, paths.voc_output)
-                model.checkpoint(paths.voc_checkpoints)
+                model.checkpoint(paths.voc_checkpoints, optimizer)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:.4f} | {speed:.1f} steps/s | Step: {k}k | '
             stream(msg)
 
+        # Must save latest optimizer state to ensure that resuming training
+        # doesn't produce artifacts
+        torch.save(optimizer.state_dict(), paths.voc_latest_optim)
         model.save(paths.voc_latest_weights)
         model.log(paths.voc_log, msg)
         print(' ')
@@ -85,6 +100,8 @@ if __name__ == "__main__":
     
     if not args.force_cpu and torch.cuda.is_available():
         device = torch.device('cuda')
+        if batch_size % torch.cuda.device_count() != 0:
+            raise ValueError('`batch_size` must be evenly divisible by n_gpus!')
     else:
         device = torch.device('cpu')
     print('Using device:', device)
@@ -112,7 +129,10 @@ if __name__ == "__main__":
 
     voc_model.restore(paths.voc_latest_weights)
 
-    optimiser = optim.Adam(voc_model.parameters())
+    optimizer = optim.Adam(voc_model.parameters())
+    if os.path.isfile(paths.voc_latest_optim):
+        print(f'Loading Optimizer State: "{paths.voc_latest_optim}"')
+        optimizer.load_state_dict(torch.load(paths.voc_latest_optim))
 
     train_set, test_set = get_vocoder_datasets(paths.data, batch_size, train_gta)
 
@@ -126,7 +146,7 @@ if __name__ == "__main__":
 
     loss_func = F.cross_entropy if voc_model.mode == 'RAW' else discretized_mix_logistic_loss
 
-    voc_train_loop(voc_model, loss_func, optimiser, train_set, test_set, lr, total_steps, device)
+    voc_train_loop(voc_model, loss_func, optimizer, train_set, test_set, lr, total_steps)
 
     print('Training Complete.')
     print('To continue training increase voc_total_steps in hparams.py or use --force_train')
