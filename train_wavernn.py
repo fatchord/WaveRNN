@@ -11,6 +11,7 @@ from models.fatchord_version import WaveRNN
 from gen_wavernn import gen_testset
 from utils.paths import Paths
 import argparse
+from utils import data_parallel_workaround
 
 
 def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_steps, device):
@@ -27,8 +28,12 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
 
         for i, (x, y, m) in enumerate(train_set, 1):
             x, m, y = x.to(device), m.to(device), y.to(device)
-
-            y_hat = model(x, m)
+        
+            # Parallelize model onto GPUS using workaround due to python bug
+            if device == torch.device('cuda') and torch.cuda.device_count() > 1:
+                y_hat = data_parallel_workaround(model, x, m)
+            else:
+                y_hat = model(x, m)
 
             if model.mode == 'RAW':
                 y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
@@ -43,6 +48,10 @@ def voc_train_loop(model, loss_func, optimiser, train_set, test_set, lr, total_s
 
             optimiser.zero_grad()
             loss.backward()
+            if hp.voc_clip_grad_norm is not None:
+                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.voc_clip_grad_norm)
+                if np.isnan(grad_norm):
+                    print('grad_norm was NaN!')
             optimiser.step()
             running_loss += loss.item()
 
@@ -85,6 +94,8 @@ if __name__ == "__main__":
     
     if not args.force_cpu and torch.cuda.is_available():
         device = torch.device('cuda')
+        if batch_size % torch.cuda.device_count() != 0:
+            raise ValueError('`batch_size` must be evenly divisible by n_gpus!')
     else:
         device = torch.device('cpu')
     print('Using device:', device)

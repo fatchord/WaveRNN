@@ -32,7 +32,11 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
 
             x, m = x.to(device), m.to(device)
 
-            m1_hat, m2_hat, attention = model(x, m)
+            # Parallelize model onto GPUS using workaround due to python bug
+            if device == torch.device('cuda') and torch.cuda.device_count() > 1:
+                m1_hat, m2_hat, attention = data_parallel_workaround(model, x, m)
+            else:
+                m1_hat, m2_hat, attention = model(x, m) 
 
             m1_loss = F.l1_loss(m1_hat, m)
             m2_loss = F.l1_loss(m2_hat, m)
@@ -42,9 +46,10 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
             running_loss += loss.item()
 
             loss.backward()
-
-            if hp.tts_clip_grad_norm:
-                torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
+            if hp.tts_clip_grad_norm is not None:
+                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
+                if np.isnan(grad_norm):
+                    print('grad_norm was NaN!')
 
             optimizer.step()
 
@@ -109,6 +114,10 @@ if __name__ == "__main__":
 
     if not args.force_cpu and torch.cuda.is_available():
         device = torch.device('cuda')
+        for session in hp.tts_schedule:
+            _, _, _, batch_size = session
+            if batch_size % torch.cuda.device_count() != 0:
+                raise ValueError('`batch_size` must be evenly divisible by n_gpus!')
     else:
         device = torch.device('cpu')
     print('Using device:', device)

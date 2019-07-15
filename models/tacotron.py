@@ -279,10 +279,8 @@ class Tacotron(nn.Module):
         self.init_model()
         self.num_params()
 
-        # Unfortunately I have to put these settings into params in order to save
-        # if anyone knows a better way of doing this please open an issue in the repo
-        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
-        self.r = nn.Parameter(torch.tensor(0).long(), requires_grad=False)
+        self.register_buffer('step', torch.zeros(1, dtype=torch.long))
+        self.register_buffer('r', torch.tensor(0, dtype=torch.long))
 
     def set_r(self, r):
         self.r.data = torch.tensor(r)
@@ -430,7 +428,9 @@ class Tacotron(nn.Module):
         return self.step.data.item()
 
     def reset_step(self):
-        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
+        assert self.step is not None
+        # assignment to parameters or buffers is overloaded, updates internal dict entry
+        self.step = torch.zeros(1, dtype=torch.long)
 
     def checkpoint(self, path):
         k_steps = self.get_step() // 1000
