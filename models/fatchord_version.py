@@ -388,9 +388,12 @@ class WaveRNN(nn.Module):
     def get_step(self):
         return self.step.data.item()
 
-    def checkpoint(self, path):
+    def checkpoint(self, path, optimizer):
+        # Optimizer can be given as an argument because checkpoint function is
+        # only useful in context of already existing training process.
         k_steps = self.get_step() // 1000
         self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
+        torch.save(optimizer.get_state(), f'{path}/checkpoint_{k_steps}k_steps_optim.pyt')
 
     def log(self, path, msg):
         with open(path, 'a') as f:
@@ -405,10 +408,14 @@ class WaveRNN(nn.Module):
             self.load(path)
 
     def load(self, path, device='cpu'):
-        # because PyTorch places on CPU by default, we follow those semantics by using CPU as default.
+        # because PyTorch places on CPU by default, we follow those semantics by
+        # using CPU as default.
         self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
     def save(self, path):
+        # No optimizer argument because saving a model should not include data
+        # only relevant in the training process - it should only be properties
+        # of the model itself. Let caller take care of saving optimzier state.
         torch.save(self.state_dict(), path)
 
     def num_params(self, print_out=True):

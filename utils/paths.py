@@ -11,12 +11,14 @@ class Paths:
         # WaveRNN/Vocoder Paths
         self.voc_checkpoints = f'checkpoints/{voc_id}.wavernn/'
         self.voc_latest_weights = f'{self.voc_checkpoints}latest_weights.pyt'
+        self.voc_latest_optim = f'{self.voc_checkpoints}latest_optim.pyt'
         self.voc_output = f'model_outputs/{voc_id}.wavernn/'
         self.voc_step = f'{self.voc_checkpoints}/step.npy'
         self.voc_log = f'{self.voc_checkpoints}log.txt'
         # Tactron/TTS Paths
         self.tts_checkpoints = f'checkpoints/{tts_id}.tacotron/'
         self.tts_latest_weights = f'{self.tts_checkpoints}latest_weights.pyt'
+        self.tts_latest_optim = f'{self.tts_checkpoints}latest_optim.pyt'
         self.tts_output = f'model_outputs/{tts_id}.tts/'
         self.tts_step = f'{self.tts_checkpoints}/step.npy'
         self.tts_log = f'{self.tts_checkpoints}log.txt'
