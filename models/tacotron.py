@@ -452,8 +452,9 @@ class Tacotron(nn.Module):
             self.load(path)
             self.decoder.r = self.r.item()
 
-    def load(self, path, device='cpu'):
-        # because PyTorch places on CPU by default, we follow those semantics by using CPU as default.
+    def load(self, path):
+        # Use device of model params as location for loaded state
+        device = next(self.parameters()).device
         self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
     def save(self, path):
