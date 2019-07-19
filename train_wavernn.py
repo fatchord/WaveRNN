@@ -33,7 +33,7 @@ def voc_train_loop(model, loss_func, optimizer, train_set, test_set, lr, total_s
             x, m, y = x.to(device), m.to(device), y.to(device)
         
             # Parallelize model onto GPUS using workaround due to python bug
-            if device == torch.device('cuda') and torch.cuda.device_count() > 1:
+            if device.type == 'cuda' and torch.cuda.device_count() > 1:
                 y_hat = data_parallel_workaround(model, x, m)
             else:
                 y_hat = model(x, m)

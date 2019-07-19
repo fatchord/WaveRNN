@@ -35,7 +35,7 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
             x, m = x.to(device), m.to(device)
 
             # Parallelize model onto GPUS using workaround due to python bug
-            if device == torch.device('cuda') and torch.cuda.device_count() > 1:
+            if device.type == 'cuda' and torch.cuda.device_count() > 1:
                 m1_hat, m2_hat, attention = data_parallel_workaround(model, x, m)
             else:
                 m1_hat, m2_hat, attention = model(x, m) 

@@ -204,8 +204,7 @@ class Decoder(nn.Module):
         self.mel_proj = nn.Linear(lstm_dims, n_mels * self.max_r, bias=False)
         
     def zoneout(self, prev, current, p=0.1):
-        device = prev.device
-        assert prev.device == current.device
+        device = next(self.parameters()).device  # Use same device as parameters
         mask = torch.zeros(prev.size(), device=device).bernoulli_(p)
         return prev * mask + current * (1 - mask)
     
