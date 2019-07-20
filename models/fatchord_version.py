@@ -100,6 +100,9 @@ class WaveRNN(nn.Module):
         else:
             RuntimeError("Unknown model mode value - ", self.mode)
 
+        # List of rnns to call `flatten_parameters()` on
+        self._to_flatten = []
+        
         self.rnn_dims = rnn_dims
         self.aux_dims = res_out_dims // 4
         self.hop_length = hop_length
@@ -107,8 +110,11 @@ class WaveRNN(nn.Module):
 
         self.upsample = UpsampleNetwork(feat_dims, upsample_factors, compute_dims, res_blocks, res_out_dims, pad)
         self.I = nn.Linear(feat_dims + self.aux_dims + 1, rnn_dims)
+        
         self.rnn1 = nn.GRU(rnn_dims, rnn_dims, batch_first=True)
         self.rnn2 = nn.GRU(rnn_dims + self.aux_dims, rnn_dims, batch_first=True)
+        self._to_flatten += [self.rnn1, self.rnn2]
+        
         self.fc1 = nn.Linear(rnn_dims + self.aux_dims, fc_dims)
         self.fc2 = nn.Linear(fc_dims + self.aux_dims, fc_dims)
         self.fc3 = nn.Linear(fc_dims, self.n_classes)
@@ -116,8 +122,16 @@ class WaveRNN(nn.Module):
         self.register_buffer('step', torch.zeros(1, dtype=torch.long))
         self.num_params()
 
+        # Avoid fragmentation of RNN parameters and associated warning
+        self._flatten_parameters()
+
     def forward(self, x, mels):
         device = next(self.parameters()).device  # use same device as parameters
+
+        # Although we `_flatten_parameters()` on init, when using DataParallel 
+        # the model gets replicated, making it no longer guaranteed that the
+        # weights are contiguous in GPU memory. Hence, we must call it again
+        self._flatten_parameters()
         
         self.step += 1
         bsize = x.size(0)
@@ -424,3 +438,8 @@ class WaveRNN(nn.Module):
         if print_out:
             print('Trainable Parameters: %.3fM' % parameters)
         return parameters
+
+    def _flatten_parameters(self):
+        """Calls `flatten_parameters` on all the rnns used by the WaveRNN. Used
+        to improve efficiency and avoid PyTorch yelling at us."""
+        [m.flatten_parameters() for m in self._to_flatten]
