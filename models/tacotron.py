@@ -54,6 +54,9 @@ class CBHG(nn.Module):
     def __init__(self, K, in_channels, channels, proj_channels, num_highways):
         super().__init__()
         
+        # List of all rnns to call `flatten_parameters()` on
+        self._to_flatten = []
+        
         self.bank_kernels = [i for i in range(1, K + 1)]
         self.conv1d_bank = nn.ModuleList()
         for k in self.bank_kernels:
@@ -78,8 +81,16 @@ class CBHG(nn.Module):
             self.highways.append(hn)
         
         self.rnn = nn.GRU(channels, channels, batch_first=True, bidirectional=True)
+        self._to_flatten.append(self.rnn)
+
+        # Avoid fragmentation of RNN parameters and associated warning
+        self._flatten_parameters()
     
     def forward(self, x):
+        # Although we `_flatten_parameters()` on init, when using DataParallel 
+        # the model gets replicated, making it no longer guaranteed that the
+        # weights are contiguous in GPU memory. Hence, we must call it again
+        self._flatten_parameters()
 
         # Save these for later
         residual = x
@@ -114,6 +125,10 @@ class CBHG(nn.Module):
         x, _ = self.rnn(x)
         return x
 
+    def _parameters(self):
+        """Calls `flatten_parameters` on all the rnns used by the WaveRNN. Used
+        to improve efficiency and avoid PyTorch yelling at us."""
+        [m.flatten_parameters() for m in self._to_flatten]
 
 class PreNet(nn.Module):
     def __init__(self, in_dims, fc1_dims=256, fc2_dims=128, dropout=0.5):
