@@ -153,7 +153,7 @@ if __name__ == "__main__":
 
     optimizer = optim.Adam(model.parameters())
     if os.path.isfile(paths.tts_latest_optim):
-        print(f'Loading Optimizer State: "{paths.tts_latest_optim}"')
+        print(f'Loading Optimizer State: "{paths.tts_latest_optim}"\n')
         optimizer.load_state_dict(torch.load(paths.tts_latest_optim))
 
     current_step = model.get_step()

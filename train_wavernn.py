@@ -131,7 +131,7 @@ if __name__ == "__main__":
 
     optimizer = optim.Adam(voc_model.parameters())
     if os.path.isfile(paths.voc_latest_optim):
-        print(f'Loading Optimizer State: "{paths.voc_latest_optim}"')
+        print(f'Loading Optimizer State: "{paths.voc_latest_optim}"\n')
         optimizer.load_state_dict(torch.load(paths.voc_latest_optim))
 
     train_set, test_set = get_vocoder_datasets(paths.data, batch_size, train_gta)
