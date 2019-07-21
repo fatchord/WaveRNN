@@ -240,13 +240,13 @@ class WaveRNN(nn.Module):
         output = output.cpu().numpy()
         output = output.astype(np.float64)
 
+        if mu_law:
+            output = decode_mu_law(output, self.n_classes, False)
+
         if batched:
             output = self.xfade_and_unfold(output, target, overlap)
         else:
             output = output[0]
-
-        if mu_law:
-            output = decode_mu_law(output, self.n_classes, False)
 
         # Fade-out at the end to avoid signal cutting out suddenly
         fade_out = np.linspace(1, 0, 20 * self.hop_length)
