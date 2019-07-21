@@ -60,13 +60,17 @@ else:
         with open(f'{paths.data}text_dict.pkl', 'wb') as f:
             pickle.dump(text_dict, f)
 
-    simple_table([('Sample Rate', hp.sample_rate),
-                  ('Bit Depth', hp.bits),
-                  ('Mu Law', hp.mu_law),
-                  ('Hop Length', hp.hop_length),
-                  ('CPU Count', cpu_count())])
+    n_processes = min(8, cpu_count())
 
-    pool = Pool(processes=cpu_count())
+    simple_table([
+        ('Sample Rate', hp.sample_rate),
+        ('Bit Depth', hp.bits),
+        ('Mu Law', hp.mu_law),
+        ('Hop Length', hp.hop_length),
+        ('CPU Usage', f'{n_processes}/{cpu_count()}')
+    ])
+
+    pool = Pool(processes=n_processes)
     dataset = []
 
     for i, (id, length) in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
