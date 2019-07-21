@@ -125,7 +125,7 @@ class CBHG(nn.Module):
         x, _ = self.rnn(x)
         return x
 
-    def _parameters(self):
+    def _flatten_parameters(self):
         """Calls `flatten_parameters` on all the rnns used by the WaveRNN. Used
         to improve efficiency and avoid PyTorch yelling at us."""
         [m.flatten_parameters() for m in self._to_flatten]
