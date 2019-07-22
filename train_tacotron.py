@@ -15,7 +15,7 @@ import os
 def np_now(x): return x.detach().cpu().numpy()
 
 
-def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
+def tts_train_loop(model: Tacotron, optimizer, train_set, lr, train_steps, attn_example):
     device = next(model.parameters()).device  # use same device as model parameters
 
     for p in optimizer.param_groups: p['lr'] = lr
@@ -81,7 +81,7 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
         print(' ')
 
 
-def create_gta_features(model, train_set, save_path):
+def create_gta_features(model: Tacotron, train_set, save_path):
     device = next(model.parameters()).device  # use same device as model parameters
 
     iters = len(train_set)
@@ -168,14 +168,14 @@ if __name__ == "__main__":
 
                 train_set, attn_example = get_tts_dataset(paths.data, batch_size, r)
 
-                model.set_r(r)
+                model.r = r
 
                 training_steps = max_step - current_step
 
                 simple_table([(f'Steps with r={r}', str(training_steps//1000) + 'k Steps'),
                               ('Batch Size', batch_size),
                               ('Learning Rate', lr),
-                              ('Outputs/Step (r)', model.get_r())])
+                              ('Outputs/Step (r)', model.r)])
 
                 tts_train_loop(model, optimizer, train_set, lr, training_steps, attn_example)
 
@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
     print('Creating Ground Truth Aligned Dataset...\n')
 
-    train_set, attn_example = get_tts_dataset(paths.data, 8, model.get_r())
+    train_set, attn_example = get_tts_dataset(paths.data, 8, model.r)
     create_gta_features(model, train_set, paths.gta)
 
     print('\n\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta\n')

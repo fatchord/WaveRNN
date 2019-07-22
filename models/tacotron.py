@@ -204,10 +204,12 @@ class LSA(nn.Module):
 
 
 class Decoder(nn.Module):
+    # Class variable because its value doesn't change between classes
+    # yet ought to be scoped by class because its a property of a Decoder
+    max_r = 20
     def __init__(self, n_mels, decoder_dims, lstm_dims):
         super().__init__()
-        self.max_r = 20
-        self.r = None
+        self.register_buffer('r', torch.tensor(1, dtype=torch.int))
         self.generating = False
         self.n_mels = n_mels
         self.prenet = PreNet(n_mels)
@@ -294,14 +296,14 @@ class Tacotron(nn.Module):
         self.num_params()
 
         self.register_buffer('step', torch.zeros(1, dtype=torch.long))
-        self.register_buffer('r', torch.tensor(0, dtype=torch.long))
+    
+    @property
+    def r(self):
+        return self.decoder.r.item()
 
-    def set_r(self, r):
-        self.r.data = torch.tensor(r)
-        self.decoder.r = r
-
-    def get_r(self):
-        return self.r.item()
+    @r.setter
+    def r(self, value):
+        self.decoder.r = self.decoder.r.new_tensor(value, requires_grad=False)
 
     def forward(self, x, m, generate_gta=False):
         device = next(self.parameters()).device  # use same device as parameters
@@ -363,7 +365,7 @@ class Tacotron(nn.Module):
         
         # For easy visualisation
         attn_scores = torch.cat(attn_scores, 1)
-        attn_scores = attn_scores.cpu().data.numpy()
+        # attn_scores = attn_scores.cpu().data.numpy()
             
         return mel_outputs, linear, attn_scores
     
@@ -443,8 +445,9 @@ class Tacotron(nn.Module):
 
     def reset_step(self):
         assert self.step is not None
+        device = next(self.parameters()).device  # use same device as parameters
         # assignment to parameters or buffers is overloaded, updates internal dict entry
-        self.step = torch.zeros(1, dtype=torch.long)
+        self.step = torch.zeros(1, dtype=torch.long, device=device)
 
     def checkpoint(self, path, optimizer):
         # Optimizer can be given as an argument because checkpoint function is
@@ -464,7 +467,6 @@ class Tacotron(nn.Module):
         else:
             print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
-            self.decoder.r = self.r.item()
 
     def load(self, path):
         # Use device of model params as location for loaded state
