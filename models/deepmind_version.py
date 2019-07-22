@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.display import *
 from utils.dsp import *
+import numpy as np
 
 class WaveRNN(nn.Module):
     def __init__(self, hidden_size=896, quantisation=256):

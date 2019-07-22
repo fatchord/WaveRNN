@@ -7,7 +7,7 @@ import torch
 import argparse
 
 
-def gen_testset(model, test_set, samples, batched, target, overlap, save_path):
+def gen_testset(model: WaveRNN, test_set, samples, batched, target, overlap, save_path):
 
     k = model.get_step() // 1000
 
@@ -34,7 +34,7 @@ def gen_testset(model, test_set, samples, batched, target, overlap, save_path):
         _ = model.generate(m, save_str, batched, target, overlap, hp.mu_law)
 
 
-def gen_from_file(model, load_path, save_path, batched, target, overlap):
+def gen_from_file(model: WaveRNN, load_path, save_path, batched, target, overlap):
 
     k = model.get_step() // 1000
     file_name = load_path.split('/')[-1]

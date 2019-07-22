@@ -15,7 +15,7 @@ from utils import data_parallel_workaround
 import os
 
 
-def voc_train_loop(model, loss_func, optimizer, train_set, test_set, lr, total_steps):
+def voc_train_loop(model: WaveRNN, loss_func, optimizer, train_set, test_set, lr, total_steps):
     # Use same device as model parameters
     device = next(model.parameters()).device
     
@@ -56,6 +56,7 @@ def voc_train_loop(model, loss_func, optimizer, train_set, test_set, lr, total_s
                 if np.isnan(grad_norm):
                     print('grad_norm was NaN!')
             optimizer.step()
+            
             running_loss += loss.item()
 
             speed = i / (time.time() - start)

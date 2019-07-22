@@ -15,7 +15,7 @@ import os
 def np_now(x): return x.detach().cpu().numpy()
 
 
-def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
+def tts_train_loop(model: Tacotron, optimizer, train_set, lr, train_steps, attn_example):
     device = next(model.parameters()).device  # use same device as model parameters
 
     for p in optimizer.param_groups: p['lr'] = lr
@@ -81,7 +81,7 @@ def tts_train_loop(model, optimizer, train_set, lr, train_steps, attn_example):
         print(' ')
 
 
-def create_gta_features(model, train_set, save_path):
+def create_gta_features(model: Tacotron, train_set, save_path):
     device = next(model.parameters()).device  # use same device as model parameters
 
     iters = len(train_set)
