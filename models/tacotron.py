@@ -209,7 +209,7 @@ class Decoder(nn.Module):
     max_r = 20
     def __init__(self, n_mels, decoder_dims, lstm_dims):
         super().__init__()
-        self.register_buffer('r', torch.tensor(0, dtype=torch.int))
+        self.register_buffer('r', torch.tensor(1, dtype=torch.int))
         self.generating = False
         self.n_mels = n_mels
         self.prenet = PreNet(n_mels)
