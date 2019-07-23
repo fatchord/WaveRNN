@@ -10,9 +10,17 @@ from utils.text.recipes import ljspeech
 from utils.files import get_files
 
 
+# Helper functions for argument types
+def valid_n_workers(num):
+    n = int(num)
+    if n < 1:
+        raise argparse.ArgumentTypeError('%r must be an integer greater than 0' % num)
+    return n
+
 parser = argparse.ArgumentParser(description='Preprocessing for WaveRNN and Tacotron')
 parser.add_argument('--path', '-p', default=hp.wav_path, help='directly point to dataset path (overrides hparams.wav_path')
-parser.add_argument('--extension', '-e', default='.wav', help='file extension to search for in dataset folder')
+parser.add_argument('--extension', '-e', metavar='EXT', default='.wav', help='file extension to search for in dataset folder')
+parser.add_argument('--num_workers', '-w', metavar='EXT', type=valid_n_workers, default=cpu_count()-1, help='The number of worker threads to use for preprocessing')
 args = parser.parse_args()
 
 extension = args.extension
@@ -60,17 +68,17 @@ else:
         with open(f'{paths.data}text_dict.pkl', 'wb') as f:
             pickle.dump(text_dict, f)
 
-    n_processes = min(8, cpu_count())
+    n_workers = max(1, args.num_workers)
 
     simple_table([
         ('Sample Rate', hp.sample_rate),
         ('Bit Depth', hp.bits),
         ('Mu Law', hp.mu_law),
         ('Hop Length', hp.hop_length),
-        ('CPU Usage', f'{n_processes}/{cpu_count()}')
+        ('CPU Usage', f'{n_workers}/{cpu_count()}')
     ])
 
-    pool = Pool(processes=n_processes)
+    pool = Pool(processes=n_workers)
     dataset = []
 
     for i, (id, length) in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
