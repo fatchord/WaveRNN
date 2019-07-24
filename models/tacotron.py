@@ -3,6 +3,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pathlib import Path
+from typing import Union
 
 
 class HighwayNetwork(nn.Module):
@@ -449,18 +451,19 @@ class Tacotron(nn.Module):
         # assignment to parameters or buffers is overloaded, updates internal dict entry
         self.step = torch.zeros(1, dtype=torch.long, device=device)
 
-    def checkpoint(self, path, optimizer):
+    def checkpoint(self, path: Union[str, Path], optimizer):
         # Optimizer can be given as an argument because checkpoint function is
         # only useful in context of already existing training process.
+        if isinstance(path, str): path = Path(path)
         k_steps = self.get_step() // 1000
-        self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
-        torch.save(optimizer.get_state(), f'{path}/checkpoint_{k_steps}k_steps_optim.pyt')
+        self.save(path/f'checkpoint_{k_steps}k_steps.pyt')
+        torch.save(optimizer.state_dict(), path/f'checkpoint_{k_steps}k_steps_optim.pyt')
 
     def log(self, path, msg):
         with open(path, 'a') as f:
             print(msg, file=f)
 
-    def restore(self, path):
+    def restore(self, path: Union[str, Path]):
         if not os.path.exists(path):
             print('\nNew Tacotron Training Session...\n')
             self.save(path)
@@ -468,12 +471,12 @@ class Tacotron(nn.Module):
             print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
 
-    def load(self, path):
+    def load(self, path: Union[str, Path]):
         # Use device of model params as location for loaded state
         device = next(self.parameters()).device
         self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
-    def save(self, path):
+    def save(self, path: Union[str, Path]):
         # No optimizer argument because saving a model should not include data
         # only relevant in the training process - it should only be properties
         # of the model itself. Let caller take care of saving optimzier state.

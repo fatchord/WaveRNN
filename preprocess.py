@@ -8,6 +8,7 @@ import pickle
 import argparse
 from utils.text.recipes import ljspeech
 from utils.files import get_files
+from pathlib import Path
 
 
 # Helper functions for argument types
@@ -27,7 +28,7 @@ extension = args.extension
 path = args.path
 
 
-def convert_file(path):
+def convert_file(path: Path):
     y = load_wav(path)
     peak = np.abs(y).max()
     if hp.peak_norm or peak > 1.0:
@@ -41,12 +42,12 @@ def convert_file(path):
     return mel.astype(np.float32), quant.astype(np.int64)
 
 
-def process_wav(path):
-    id = path.split('/')[-1][:-4]
+def process_wav(path: Path):
+    wav_id = path.stem
     m, x = convert_file(path)
-    np.save(f'{paths.mel}{id}.npy', m, allow_pickle=False)
-    np.save(f'{paths.quant}{id}.npy', x, allow_pickle=False)
-    return id, m.shape[-1]
+    np.save(paths.mel/f'{wav_id}.npy', m, allow_pickle=False)
+    np.save(paths.quant/f'{wav_id}.npy', x, allow_pickle=False)
+    return wav_id, m.shape[-1]
 
 
 wav_files = get_files(path, extension)
@@ -65,7 +66,7 @@ else:
 
         text_dict = ljspeech(path)
 
-        with open(f'{paths.data}text_dict.pkl', 'wb') as f:
+        with open(paths.data/'text_dict.pkl', 'wb') as f:
             pickle.dump(text_dict, f)
 
     n_workers = max(1, args.num_workers)
@@ -81,13 +82,13 @@ else:
     pool = Pool(processes=n_workers)
     dataset = []
 
-    for i, (id, length) in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
-        dataset += [(id, length)]
+    for i, (item_id, length) in enumerate(pool.imap_unordered(process_wav, wav_files), 1):
+        dataset += [(item_id, length)]
         bar = progbar(i, len(wav_files))
         message = f'{bar} {i}/{len(wav_files)} '
         stream(message)
 
-    with open(f'{paths.data}dataset.pkl', 'wb') as f:
+    with open(paths.data/'dataset.pkl', 'wb') as f:
         pickle.dump(dataset, f)
 
     print('\n\nCompleted. Ready to run "python train_tacotron.py" or "python train_wavernn.py". \n')

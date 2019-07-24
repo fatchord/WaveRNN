@@ -2,7 +2,7 @@ import torch
 from torch import optim
 import torch.nn.functional as F
 from utils.display import *
-from utils.dataset import get_tts_dataset
+from utils.dataset import get_tts_datasets
 import hparams as hp
 from utils.text.symbols import symbols
 from utils.paths import Paths
@@ -10,9 +10,10 @@ from models.tacotron import Tacotron
 import argparse
 from utils import data_parallel_workaround
 import os
+from pathlib import Path
 
 
-def np_now(x): return x.detach().cpu().numpy()
+def np_now(x: torch.Tensor): return x.detach().cpu().numpy()
 
 
 def tts_train_loop(model: Tacotron, optimizer, train_set, lr, train_steps, attn_example):
@@ -67,8 +68,8 @@ def tts_train_loop(model: Tacotron, optimizer, train_set, lr, train_steps, attn_
 
             if attn_example in ids:
                 idx = ids.index(attn_example)
-                save_attention(attention[idx][:, :160], f'{paths.tts_attention}{step}')
-                save_spectrogram(np_now(m2_hat[idx]), f'{paths.tts_mel_plot}{step}', 600)
+                save_attention(attention[idx][:, :160], paths.tts_attention/f'{step}')
+                save_spectrogram(np_now(m2_hat[idx]), paths.tts_mel_plot/f'{step}', 600)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
             stream(msg)
@@ -81,7 +82,7 @@ def tts_train_loop(model: Tacotron, optimizer, train_set, lr, train_steps, attn_
         print(' ')
 
 
-def create_gta_features(model: Tacotron, train_set, save_path):
+def create_gta_features(model: Tacotron, train_set, save_path: Path):
     device = next(model.parameters()).device  # use same device as model parameters
 
     iters = len(train_set)
@@ -94,11 +95,10 @@ def create_gta_features(model: Tacotron, train_set, save_path):
 
         gta = gta.cpu().numpy()
 
-        for j in range(len(ids)):
+        for j, item_id in enumerate(len(ids)):
             mel = gta[j][:, :mel_lens[j]]
             mel = (mel + 4) / 8
-            id = ids[j]
-            np.save(f'{save_path}{id}.npy', mel, allow_pickle=False)
+            np.save(save_path/f'{item_id}.npy', mel, allow_pickle=False)
 
         bar = progbar(i, iters)
         msg = f'{bar} {i}/{iters} Batches '
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     # model.set_r(hp.tts_r)
 
     optimizer = optim.Adam(model.parameters())
-    if os.path.isfile(paths.tts_latest_optim):
+    if paths.tts_latest_optim.exists():
         print(f'Loading Optimizer State: "{paths.tts_latest_optim}"\n')
         optimizer.load_state_dict(torch.load(paths.tts_latest_optim))
 
@@ -166,7 +166,7 @@ if __name__ == "__main__":
 
             if current_step < max_step:
 
-                train_set, attn_example = get_tts_dataset(paths.data, batch_size, r)
+                train_set, attn_example = get_tts_datasets(paths.data, batch_size, r)
 
                 model.r = r
 
@@ -185,7 +185,7 @@ if __name__ == "__main__":
 
     print('Creating Ground Truth Aligned Dataset...\n')
 
-    train_set, attn_example = get_tts_dataset(paths.data, 8, model.r)
+    train_set, attn_example = get_tts_datasets(paths.data, 8, model.r)
     create_gta_features(model, train_set, paths.gta)
 
     print('\n\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta\n')

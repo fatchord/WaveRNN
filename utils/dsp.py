@@ -14,6 +14,7 @@ def float_2_label(x, bits):
     x = (x + 1.) * (2**bits - 1) / 2
     return x.clip(0, 2**bits - 1)
 
+
 def load_wav(path):
     return librosa.load(path, sr=hp.sample_rate)[0]
 
@@ -38,8 +39,6 @@ def encode_16bits(x):
 
 
 mel_basis = None
-
-
 def linear_to_mel(spectrogram):
     global mel_basis
     if mel_basis is None:

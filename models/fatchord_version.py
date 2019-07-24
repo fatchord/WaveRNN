@@ -6,6 +6,8 @@ from utils.display import *
 from utils.dsp import *
 import os
 import numpy as np
+from pathlib import Path
+from typing import Union
 
 
 class ResBlock(nn.Module):
@@ -164,7 +166,7 @@ class WaveRNN(nn.Module):
         x = F.relu(self.fc2(x))
         return self.fc3(x)
 
-    def generate(self, mels, save_path, batched, target, overlap, mu_law):
+    def generate(self, mels, save_path: Union[str, Path], batched, target, overlap, mu_law):
         device = next(self.parameters()).device  # use same device as parameters
 
         mu_law = mu_law if self.mode == 'RAW' else False
@@ -403,18 +405,19 @@ class WaveRNN(nn.Module):
     def get_step(self):
         return self.step.data.item()
 
-    def checkpoint(self, path, optimizer):
+    def checkpoint(self, path: Union[str, Path], optimizer):
         # Optimizer can be given as an argument because checkpoint function is
         # only useful in context of already existing training process.
+        if isinstance(path, str): path = Path(path)
         k_steps = self.get_step() // 1000
-        self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
-        torch.save(optimizer.get_state(), f'{path}/checkpoint_{k_steps}k_steps_optim.pyt')
+        self.save(path/f'checkpoint_{k_steps}k_steps.pyt')
+        torch.save(optimizer.state_dict(), path/f'checkpoint_{k_steps}k_steps_optim.pyt')
 
     def log(self, path, msg):
         with open(path, 'a') as f:
             print(msg, file=f)
 
-    def restore(self, path):
+    def restore(self, path: Union[str, Path]):
         if not os.path.exists(path):
             print('\nNew WaveRNN Training Session...\n')
             self.save(path)
@@ -422,12 +425,12 @@ class WaveRNN(nn.Module):
             print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
 
-    def load(self, path):
+    def load(self, path: Union[str, Path]):
         # Use device of model params as location for loaded state
         device = next(self.parameters()).device
         self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
-    def save(self, path):
+    def save(self, path: Union[str, Path]):
         # No optimizer argument because saving a model should not include data
         # only relevant in the training process - it should only be properties
         # of the model itself. Let caller take care of saving optimzier state.
