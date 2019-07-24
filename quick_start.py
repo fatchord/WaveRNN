@@ -119,6 +119,6 @@ if __name__ == "__main__":
         m = torch.tensor(m).unsqueeze(0)
         m = (m + 4) / 8
 
-        voc_model.generate(m, save_path, batched, hp.voc_target, hp.voc_overlap, hp.mu_law)
+        voc_model.generate(m, save_path, batched, target, overlap, hp.mu_law)
 
     print('\n\nDone.\n')

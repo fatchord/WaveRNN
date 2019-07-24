@@ -7,7 +7,7 @@ import torch
 import argparse
 
 
-def gen_testset(model, test_set, samples, batched, target, overlap, save_path):
+def gen_testset(model: WaveRNN, test_set, samples, batched, target, overlap, save_path):
 
     k = model.get_step() // 1000
 
@@ -34,7 +34,7 @@ def gen_testset(model, test_set, samples, batched, target, overlap, save_path):
         _ = model.generate(m, save_str, batched, target, overlap, hp.mu_law)
 
 
-def gen_from_file(model, load_path, save_path, batched, target, overlap):
+def gen_from_file(model: WaveRNN, load_path, save_path, batched, target, overlap):
 
     k = model.get_step() // 1000
     file_name = load_path.split('/')[-1]
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     parser.add_argument('--file', '-f', type=str, help='[string/path] for testing a wav outside dataset')
     parser.add_argument('--weights', '-w', type=str, help='[string/path] checkpoint file to load weights from')
-    parser.add_argument('--gta', '-g', dest='use_gta', action='store_true', help='Generate from GTA testset')
+    parser.add_argument('--gta', '-g', dest='gta', action='store_true', help='Generate from GTA testset')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
 
     parser.set_defaults(batched=hp.voc_gen_batched)

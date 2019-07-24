@@ -54,6 +54,9 @@ class CBHG(nn.Module):
     def __init__(self, K, in_channels, channels, proj_channels, num_highways):
         super().__init__()
         
+        # List of all rnns to call `flatten_parameters()` on
+        self._to_flatten = []
+        
         self.bank_kernels = [i for i in range(1, K + 1)]
         self.conv1d_bank = nn.ModuleList()
         for k in self.bank_kernels:
@@ -78,8 +81,16 @@ class CBHG(nn.Module):
             self.highways.append(hn)
         
         self.rnn = nn.GRU(channels, channels, batch_first=True, bidirectional=True)
+        self._to_flatten.append(self.rnn)
+
+        # Avoid fragmentation of RNN parameters and associated warning
+        self._flatten_parameters()
     
     def forward(self, x):
+        # Although we `_flatten_parameters()` on init, when using DataParallel 
+        # the model gets replicated, making it no longer guaranteed that the
+        # weights are contiguous in GPU memory. Hence, we must call it again
+        self._flatten_parameters()
 
         # Save these for later
         residual = x
@@ -114,6 +125,10 @@ class CBHG(nn.Module):
         x, _ = self.rnn(x)
         return x
 
+    def _flatten_parameters(self):
+        """Calls `flatten_parameters` on all the rnns used by the WaveRNN. Used
+        to improve efficiency and avoid PyTorch yelling at us."""
+        [m.flatten_parameters() for m in self._to_flatten]
 
 class PreNet(nn.Module):
     def __init__(self, in_dims, fc1_dims=256, fc2_dims=128, dropout=0.5):
@@ -189,10 +204,12 @@ class LSA(nn.Module):
 
 
 class Decoder(nn.Module):
+    # Class variable because its value doesn't change between classes
+    # yet ought to be scoped by class because its a property of a Decoder
+    max_r = 20
     def __init__(self, n_mels, decoder_dims, lstm_dims):
         super().__init__()
-        self.max_r = 20
-        self.r = None
+        self.register_buffer('r', torch.tensor(1, dtype=torch.int))
         self.generating = False
         self.n_mels = n_mels
         self.prenet = PreNet(n_mels)
@@ -204,8 +221,7 @@ class Decoder(nn.Module):
         self.mel_proj = nn.Linear(lstm_dims, n_mels * self.max_r, bias=False)
         
     def zoneout(self, prev, current, p=0.1):
-        device = prev.device
-        assert prev.device == current.device
+        device = next(self.parameters()).device  # Use same device as parameters
         mask = torch.zeros(prev.size(), device=device).bernoulli_(p)
         return prev * mask + current * (1 - mask)
     
@@ -279,17 +295,15 @@ class Tacotron(nn.Module):
         self.init_model()
         self.num_params()
 
-        # Unfortunately I have to put these settings into params in order to save
-        # if anyone knows a better way of doing this please open an issue in the repo
-        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
-        self.r = nn.Parameter(torch.tensor(0).long(), requires_grad=False)
+        self.register_buffer('step', torch.zeros(1, dtype=torch.long))
+    
+    @property
+    def r(self):
+        return self.decoder.r.item()
 
-    def set_r(self, r):
-        self.r.data = torch.tensor(r)
-        self.decoder.r = r
-
-    def get_r(self):
-        return self.r.item()
+    @r.setter
+    def r(self, value):
+        self.decoder.r = self.decoder.r.new_tensor(value, requires_grad=False)
 
     def forward(self, x, m, generate_gta=False):
         device = next(self.parameters()).device  # use same device as parameters
@@ -351,7 +365,7 @@ class Tacotron(nn.Module):
         
         # For easy visualisation
         attn_scores = torch.cat(attn_scores, 1)
-        attn_scores = attn_scores.cpu().data.numpy()
+        # attn_scores = attn_scores.cpu().data.numpy()
             
         return mel_outputs, linear, attn_scores
     
@@ -430,11 +444,17 @@ class Tacotron(nn.Module):
         return self.step.data.item()
 
     def reset_step(self):
-        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
+        assert self.step is not None
+        device = next(self.parameters()).device  # use same device as parameters
+        # assignment to parameters or buffers is overloaded, updates internal dict entry
+        self.step = torch.zeros(1, dtype=torch.long, device=device)
 
-    def checkpoint(self, path):
+    def checkpoint(self, path, optimizer):
+        # Optimizer can be given as an argument because checkpoint function is
+        # only useful in context of already existing training process.
         k_steps = self.get_step() // 1000
         self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
+        torch.save(optimizer.get_state(), f'{path}/checkpoint_{k_steps}k_steps_optim.pyt')
 
     def log(self, path, msg):
         with open(path, 'a') as f:
@@ -447,13 +467,16 @@ class Tacotron(nn.Module):
         else:
             print(f'\nLoading Weights: "{path}"\n')
             self.load(path)
-            self.decoder.r = self.r.item()
 
-    def load(self, path, device='cpu'):
-        # because PyTorch places on CPU by default, we follow those semantics by using CPU as default.
+    def load(self, path):
+        # Use device of model params as location for loaded state
+        device = next(self.parameters()).device
         self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
     def save(self, path):
+        # No optimizer argument because saving a model should not include data
+        # only relevant in the training process - it should only be properties
+        # of the model itself. Let caller take care of saving optimzier state.
         torch.save(self.state_dict(), path)
 
     def num_params(self, print_out=True):
@@ -461,3 +484,4 @@ class Tacotron(nn.Module):
         parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
         if print_out:
             print('Trainable Parameters: %.3fM' % parameters)
+        return parameters
