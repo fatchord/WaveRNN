@@ -1,6 +1,5 @@
-# IDE files
+# PyCharm files
 .idea
-.vscode
 
 # Mac files
 .DS_Store

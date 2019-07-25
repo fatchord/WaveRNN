@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     simple_table([('WaveRNN', str(voc_k) + 'k'),
                   ('Tacotron', str(tts_k) + 'k'),
-                  ('r', tts_model.r),
+                  ('r', tts_model.r.item()),
                   ('Generation Mode', 'Batched' if batched else 'Unbatched'),
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
