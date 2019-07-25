@@ -11,6 +11,7 @@ import argparse
 from utils import data_parallel_workaround
 import os
 from pathlib import Path
+import time
 
 
 def np_now(x: torch.Tensor): return x.detach().cpu().numpy()

@@ -1,3 +1,5 @@
+import matplotlib as mpl
+mpl.use('agg')  # Use non-interactive backend by default
 import matplotlib.pyplot as plt
 import time
 import numpy as np
@@ -96,6 +98,7 @@ def save_spectrogram(M, path, length=None):
 
 
 def plot(array): 
+    mpl.interactive(True)
     fig = plt.figure(figsize=(30, 5))
     ax = fig.add_subplot(111)
     ax.xaxis.label.set_color('grey')
@@ -105,11 +108,14 @@ def plot(array):
     ax.tick_params(axis='x', colors='grey', labelsize=23)
     ax.tick_params(axis='y', colors='grey', labelsize=23)
     plt.plot(array)
+    mpl.interactive(False)
 
 
 def plot_spec(M):
+    mpl.interactive(True)
     M = np.flip(M, axis=0)
     plt.figure(figsize=(18,4))
     plt.imshow(M, interpolation='nearest', aspect='auto')
     plt.show()
+    mpl.interactive(False)
 
