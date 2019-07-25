@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from utils.display import *
 from utils.dsp import *
-import numpy as np
 
 class WaveRNN(nn.Module):
     def __init__(self, hidden_size=896, quantisation=256):
@@ -168,9 +167,7 @@ class WaveRNN(nn.Module):
         device = next(self.parameters()).device  # use same device as parameters
         return torch.zeros(batch_size, self.hidden_size, device=device)
     
-    def num_params(self, print_out=True):
+    def num_params(self):
         parameters = filter(lambda p: p.requires_grad, self.parameters())
         parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
-        if print_out:
-            print('Trainable Parameters: %.3f million' % parameters)
-        return parameters
+        print('Trainable Parameters: %.3f million' % parameters)
