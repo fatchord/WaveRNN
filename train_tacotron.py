@@ -69,7 +69,7 @@ def tts_train_loop(model: Tacotron, optimizer, train_set, lr, train_steps, attn_
 
             if attn_example in ids:
                 idx = ids.index(attn_example)
-                save_attention(attention[idx][:, :160], paths.tts_attention/f'{step}')
+                save_attention(np_now(attention[idx][:, :160]), paths.tts_attention/f'{step}')
                 save_spectrogram(np_now(m2_hat[idx]), paths.tts_mel_plot/f'{step}', 600)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
