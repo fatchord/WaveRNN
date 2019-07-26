@@ -129,6 +129,8 @@ def get_tts_datasets(path: Path, batch_size, r):
                            pin_memory=True)
 
     longest = mel_lengths.index(max(mel_lengths))
+
+    # Used to evaluate attention during training process
     attn_example = dataset_ids[longest]
 
     # print(attn_example)
