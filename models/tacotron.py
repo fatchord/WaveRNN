@@ -212,7 +212,6 @@ class Decoder(nn.Module):
     def __init__(self, n_mels, decoder_dims, lstm_dims):
         super().__init__()
         self.register_buffer('r', torch.tensor(1, dtype=torch.int))
-        self.generating = False
         self.n_mels = n_mels
         self.prenet = PreNet(n_mels)
         self.attn_net = LSA(decoder_dims)
@@ -257,7 +256,7 @@ class Decoder(nn.Module):
         
         # Compute first Residual RNN
         rnn1_hidden_next, rnn1_cell = self.res_rnn1(x, (rnn1_hidden, rnn1_cell))
-        if not self.generating:
+        if self.training:
             rnn1_hidden = self.zoneout(rnn1_hidden, rnn1_hidden_next)
         else:
             rnn1_hidden = rnn1_hidden_next
@@ -265,7 +264,7 @@ class Decoder(nn.Module):
         
         # Compute second Residual RNN
         rnn2_hidden_next, rnn2_cell = self.res_rnn2(x, (rnn2_hidden, rnn2_cell))
-        if not self.generating:
+        if self.training:
             rnn2_hidden = self.zoneout(rnn2_hidden, rnn2_hidden_next)
         else:
             rnn2_hidden = rnn2_hidden_next
@@ -313,13 +312,9 @@ class Tacotron(nn.Module):
         self.step += 1
 
         if generate_gta:
-            self.encoder.eval()
-            self.postnet.eval()
-            self.decoder.generating = True
+            self.eval()
         else:
-            self.encoder.train()
-            self.postnet.train()
-            self.decoder.generating = False
+            self.train()
         
         batch_size, _, steps  = m.size()
     
@@ -372,11 +367,8 @@ class Tacotron(nn.Module):
         return mel_outputs, linear, attn_scores
     
     def generate(self, x, steps=2000):
+        self.eval()
         device = next(self.parameters()).device  # use same device as parameters
-
-        self.encoder.eval()
-        self.postnet.eval()
-        self.decoder.generating = True
         
         batch_size = 1
         x = torch.as_tensor(x, dtype=torch.long, device=device).unsqueeze(0)
@@ -432,9 +424,7 @@ class Tacotron(nn.Module):
         attn_scores = torch.cat(attn_scores, 1)
         attn_scores = attn_scores.cpu().data.numpy()[0]
         
-        self.encoder.train()
-        self.postnet.train()
-        self.decoder.generating = False
+        self.train()
         
         return mel_outputs, linear, attn_scores
     

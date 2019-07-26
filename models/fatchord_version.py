@@ -167,11 +167,12 @@ class WaveRNN(nn.Module):
         return self.fc3(x)
 
     def generate(self, mels, save_path: Union[str, Path], batched, target, overlap, mu_law):
+        self.eval()
+        
         device = next(self.parameters()).device  # use same device as parameters
 
         mu_law = mu_law if self.mode == 'RAW' else False
 
-        self.eval()
         output = []
         start = time.time()
         rnn1 = self.get_gru_cell(self.rnn1)
