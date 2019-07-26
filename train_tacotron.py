@@ -76,7 +76,7 @@ def main():
                               ('Outputs/Step (r)', model.r)])
 
                 train_set, attn_example = get_tts_datasets(paths.data, batch_size, r)
-                tts_train_loop(model, optimizer, train_set, lr, training_steps, attn_example)
+                tts_train_loop(paths, model, optimizer, train_set, lr, training_steps, attn_example)
 
         print('Training Complete.')
         print('To continue training increase tts_total_steps in hparams.py or use --force_train\n')
@@ -90,7 +90,7 @@ def main():
     print('\n\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta\n')
 
 
-def tts_train_loop(model: Tacotron, optimizer, train_set, lr, train_steps, attn_example):
+def tts_train_loop(paths, model: Tacotron, optimizer, train_set, lr, train_steps, attn_example):
     device = next(model.parameters()).device  # use same device as model parameters
 
     for g in optimizer.param_groups: g['lr'] = lr
