@@ -141,7 +141,7 @@ def tts_train_loop(paths, model: Tacotron, optimizer, train_set, lr, train_steps
             if step % hp.tts_checkpoint_every == 0:
                 ckpt_name = f'taco_step{k}K'
                 save_checkpoint(paths, model, optimizer,
-                                name=ckpt_name, is_silent=False)
+                                name=ckpt_name, is_silent=True)
 
             if attn_example in ids:
                 idx = ids.index(attn_example)
