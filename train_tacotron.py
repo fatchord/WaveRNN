@@ -171,7 +171,7 @@ def create_gta_features(model: Tacotron, train_set, save_path: Path):
 
         gta = gta.cpu().numpy()
 
-        for j, item_id in enumerate(len(ids)):
+        for j, item_id in enumerate(ids):
             mel = gta[j][:, :mel_lens[j]]
             mel = (mel + 4) / 8
             np.save(save_path/f'{item_id}.npy', mel, allow_pickle=False)
