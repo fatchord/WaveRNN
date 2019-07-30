@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
 from utils.dsp import *
-import hparams as hp
+from utils import hparams as hp
 from utils.text import text_to_sequence
 from utils.paths import Paths
 from pathlib import Path

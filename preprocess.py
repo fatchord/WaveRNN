@@ -1,7 +1,7 @@
 import glob
 from utils.display import *
 from utils.dsp import *
-import hparams as hp
+from utils import hparams as hp
 from multiprocessing import Pool, cpu_count
 from utils.paths import Paths
 import pickle
@@ -9,7 +9,6 @@ import argparse
 from utils.text.recipes import ljspeech
 from utils.files import get_files
 from pathlib import Path
-from utils import import_from_file
 
 
 # Helper functions for argument types
@@ -26,7 +25,7 @@ parser.add_argument('--num_workers', '-w', metavar='N', type=valid_n_workers, de
 parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
 args = parser.parse_args()
 
-hp = import_from_file('hparams', args.hp_file)
+hp.configure(args.hp_file)  # Load hparams from file
 if args.path is None:
     args.path = hp.wav_path
 

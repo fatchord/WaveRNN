@@ -1,6 +1,6 @@
 import torch
 from models.fatchord_version import WaveRNN
-import hparams as hp
+from utils import hparams as hp
 from utils.text.symbols import symbols
 from utils.paths import Paths
 from models.tacotron import Tacotron

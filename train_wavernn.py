@@ -3,11 +3,10 @@ import numpy as np
 import torch
 from torch import optim
 import torch.nn.functional as F
-from utils import import_from_file
 from utils.display import stream, simple_table
 from utils.dataset import get_vocoder_datasets
 from utils.distribution import discretized_mix_logistic_loss
-import hparams as hp
+from utils import hparams as hp
 from models.fatchord_version import WaveRNN
 from gen_wavernn import gen_testset
 from utils.paths import Paths
@@ -19,7 +18,7 @@ import os
 def voc_train_loop(model: WaveRNN, loss_func, optimizer, train_set, test_set, lr, total_steps):
     # Use same device as model parameters
     device = next(model.parameters()).device
-    
+
     for p in optimizer.param_groups: p['lr'] = lr
 
     total_iters = len(train_set)
@@ -32,7 +31,7 @@ def voc_train_loop(model: WaveRNN, loss_func, optimizer, train_set, test_set, lr
 
         for i, (x, y, m) in enumerate(train_set, 1):
             x, m, y = x.to(device), m.to(device), y.to(device)
-        
+
             # Parallelize model onto GPUS using workaround due to python bug
             if device.type == 'cuda' and torch.cuda.device_count() > 1:
                 y_hat = data_parallel_workaround(model, x, m)
@@ -57,7 +56,7 @@ def voc_train_loop(model: WaveRNN, loss_func, optimizer, train_set, test_set, lr
                 if np.isnan(grad_norm):
                     print('grad_norm was NaN!')
             optimizer.step()
-            
+
             running_loss += loss.item()
 
             speed = i / (time.time() - start)
@@ -94,17 +93,17 @@ def main():
     parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
     args = parser.parse_args()
 
-    hp = import_from_file('hparams', args.hp_file)
+    hp.configure(args.hp_file)  # load hparams from file
     if args.lr is None:
         args.lr = hp.voc_lr
     if args.batch_size is None:
         args.batch_size = hp.voc_batch_size
-    
+
     batch_size = args.batch_size
     force_train = args.force_train
     train_gta = args.gta
     lr = args.lr
-    
+
     if not args.force_cpu and torch.cuda.is_available():
         device = torch.device('cuda')
         if batch_size % torch.cuda.device_count() != 0:
