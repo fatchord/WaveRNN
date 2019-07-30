@@ -20,13 +20,16 @@ def valid_n_workers(num):
     return n
 
 parser = argparse.ArgumentParser(description='Preprocessing for WaveRNN and Tacotron')
-parser.add_argument('--path', '-p', default=hp.wav_path, help='directly point to dataset path (overrides hparams.wav_path')
+parser.add_argument('--path', '-p', help='directly point to dataset path (overrides hparams.wav_path')
 parser.add_argument('--extension', '-e', metavar='EXT', default='.wav', help='file extension to search for in dataset folder')
 parser.add_argument('--num_workers', '-w', metavar='N', type=valid_n_workers, default=cpu_count()-1, help='The number of worker threads to use for preprocessing')
 parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
 args = parser.parse_args()
 
 hp = import_from_file('hparams', args.hp_file)
+if args.path is None:
+    args.path = hp.wav_path
+
 extension = args.extension
 path = args.path
 
