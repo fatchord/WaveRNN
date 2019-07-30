@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from torch import optim
 import torch.nn.functional as F
+from utils import import_from_file
 from utils.display import stream, simple_table
 from utils.dataset import get_vocoder_datasets
 from utils.distribution import discretized_mix_logistic_loss
@@ -81,7 +82,7 @@ def voc_train_loop(model: WaveRNN, loss_func, optimizer, train_set, test_set, lr
         print(' ')
 
 
-if __name__ == "__main__":
+def main():
 
     # Parse Arguments
     parser = argparse.ArgumentParser(description='Train WaveRNN Vocoder')
@@ -90,10 +91,15 @@ if __name__ == "__main__":
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
     parser.add_argument('--gta', '-g', action='store_true', help='train wavernn on GTA features')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
-    parser.set_defaults(lr=hp.voc_lr)
-    parser.set_defaults(batch_size=hp.voc_batch_size)
+    parser.add_argument('--hp_file', '-p', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
     args = parser.parse_args()
 
+    hp = import_from_file('hparams', args.hp_file)
+    if args.lr is None:
+        args.lr = hp.voc_lr
+    if args.batch_size is None:
+        args.batch_size = hp.voc_batch_size
+    
     batch_size = args.batch_size
     force_train = args.force_train
     train_gta = args.gta
@@ -151,3 +157,6 @@ if __name__ == "__main__":
 
     print('Training Complete.')
     print('To continue training increase voc_total_steps in hparams.py or use --force_train')
+
+if __name__ == "__main__":
+    main()

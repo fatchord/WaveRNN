@@ -1,9 +1,9 @@
 import torch
 from torch import optim
 import torch.nn.functional as F
+from utils import import_from_file
 from utils.display import *
 from utils.dataset import get_tts_datasets
-import hparams as hp
 from utils.text.symbols import symbols
 from utils.paths import Paths
 from models.tacotron import Tacotron
@@ -24,8 +24,10 @@ def main():
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
     parser.add_argument('--force_gta', '-g', action='store_true', help='Force the model to create GTA features')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
+    parser.add_argument('--hp_file', '-p', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
     args = parser.parse_args()
 
+    hp = import_from_file('hparams', args.hp_file)   
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
     force_train = args.force_train

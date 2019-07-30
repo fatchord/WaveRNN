@@ -5,6 +5,8 @@ from builtins import *
 import sys
 import torch
 
+from importlib.util import spec_from_file_location, module_from_spec
+
 # Credit: Ryuichi Yamamoto (https://github.com/r9y9/wavenet_vocoder/blob/1717f145c8f8c0f3f85ccdf346b5209fa2e1c920/train.py#L599)
 # Modified by: Ryan Butler (https://github.com/TheButlah)
 # workaround for https://github.com/pytorch/pytorch/issues/15716
@@ -30,3 +32,10 @@ def data_parallel_workaround(model, *input):
     _replicas_ref = replicas
     return y_hat
 
+
+def import_from_file(name, path):
+    """Programmatically imports a module"""
+    spec = spec_from_file_location(name, path)
+    m = module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
