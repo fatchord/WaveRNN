@@ -6,6 +6,7 @@ import sys
 import torch
 
 from importlib.util import spec_from_file_location, module_from_spec
+from pathlib import Path
 
 # Credit: Ryuichi Yamamoto (https://github.com/r9y9/wavenet_vocoder/blob/1717f145c8f8c0f3f85ccdf346b5209fa2e1c920/train.py#L599)
 # Modified by: Ryan Butler (https://github.com/TheButlah)
@@ -35,7 +36,11 @@ def data_parallel_workaround(model, *input):
 
 def import_from_file(name, path):
     """Programmatically imports a module"""
+    if not Path(path).exists():
+        raise FileNotFoundError('"%s" doesn\'t exist!' % path)
     spec = spec_from_file_location(name, path)
+    if spec is None:
+        raise ValueError('could not load module from "%s"' % path)
     m = module_from_spec(spec)
     spec.loader.exec_module(m)
     return m

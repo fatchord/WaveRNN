@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
     parser.add_argument('--force_gta', '-g', action='store_true', help='Force the model to create GTA features')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
-    parser.add_argument('--hp_file', '-p', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
+    parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
     args = parser.parse_args()
 
     hp = import_from_file('hparams', args.hp_file)   
