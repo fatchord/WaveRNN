@@ -112,9 +112,9 @@ if __name__ == "__main__":
         _, m, attention = tts_model.generate(x)
 
         if input_text:
-            save_path = f'{paths.tts_output}__input_{input_text[:10]}_{tts_k}k.wav'
+            save_path = paths.tts_output/f'__input_{input_text[:10]}_{tts_k}k.wav'
         else:
-            save_path = f'{paths.tts_output}{i}_batched{str(batched)}_{tts_k}k.wav'
+            save_path = paths.tts_output/f'{i}_batched{str(batched)}_{tts_k}k.wav'
 
         if save_attn: save_attention(attention, save_path)
 

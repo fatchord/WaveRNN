@@ -5,9 +5,10 @@ from utils.paths import Paths
 from utils.display import simple_table
 import torch
 import argparse
+from pathlib import Path
 
 
-def gen_testset(model: WaveRNN, test_set, samples, batched, target, overlap, save_path):
+def gen_testset(model: WaveRNN, test_set, samples, batched, target, overlap, save_path: Path):
 
     k = model.get_step() // 1000
 
@@ -26,27 +27,27 @@ def gen_testset(model: WaveRNN, test_set, samples, batched, target, overlap, sav
         else:
             x = label_2_float(x, bits)
 
-        save_wav(x, f'{save_path}{k}k_steps_{i}_target.wav')
+        save_wav(x, save_path/f'{k}k_steps_{i}_target.wav')
 
         batch_str = f'gen_batched_target{target}_overlap{overlap}' if batched else 'gen_NOT_BATCHED'
-        save_str = f'{save_path}{k}k_steps_{i}_{batch_str}.wav'
+        save_str = str(save_path/f'{k}k_steps_{i}_{batch_str}.wav')
 
         _ = model.generate(m, save_str, batched, target, overlap, hp.mu_law)
 
 
-def gen_from_file(model: WaveRNN, load_path, save_path, batched, target, overlap):
+def gen_from_file(model: WaveRNN, load_path, save_path: Path, batched, target, overlap):
 
     k = model.get_step() // 1000
     file_name = load_path.split('/')[-1]
 
     wav = load_wav(load_path)
-    save_wav(wav, f'{save_path}__{file_name}__{k}k_steps_target.wav')
+    save_wav(wav, save_path/f'__{file_name}__{k}k_steps_target.wav')
 
     mel = melspectrogram(wav)
     mel = torch.tensor(mel).unsqueeze(0)
 
     batch_str = f'gen_batched_target{target}_overlap{overlap}' if batched else 'gen_NOT_BATCHED'
-    save_str = f'{save_path}__{file_name}__{k}k_steps_{batch_str}.wav'
+    save_str = save_path/f'__{file_name}__{k}k_steps_{batch_str}.wav'
 
     _ = model.generate(mel, save_str, batched, target, overlap, hp.mu_law)
 
