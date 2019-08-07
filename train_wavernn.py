@@ -12,7 +12,6 @@ from gen_wavernn import gen_testset
 from utils.paths import Paths
 import argparse
 from utils import data_parallel_workaround
-import os
 
 
 def main():
@@ -205,6 +204,10 @@ def save_checkpoint(paths: Paths, model: WaveRNN, optimizer, *,
 def restore_checkpoint(paths: Paths, model: WaveRNN, optimizer, *,
         name=None, create_if_missing=False):
     """Restores from a training session saved to disk.
+
+    NOTE: The optimizer's state is placed on the same device as it's model
+    parameters. Therefore, be sure you have done `model.to(device)` before
+    calling this method.
 
     Args:
         paths:  Provides information about the different paths to use.

@@ -232,6 +232,10 @@ def restore_checkpoint(paths: Paths, model: Tacotron, optimizer, *,
         name=None, create_if_missing=False):
     """Restores from a training session saved to disk.
 
+    NOTE: The optimizer's state is placed on the same device as it's model
+    parameters. Therefore, be sure you have done `model.to(device)` before
+    calling this method.
+
     Args:
         paths:  Provides information about the different paths to use.
         model:  A `Tacotron` model to save the parameters and buffers from.
