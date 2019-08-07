@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
     args = parser.parse_args()
 
-    hp.configure(args.hp_file)  # Load hparams from file.
+    hp.configure(args.hp_file)  # Load hparams from file
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
     force_train = args.force_train
@@ -56,7 +56,7 @@ def main():
                      lstm_dims=hp.tts_lstm_dims,
                      postnet_K=hp.tts_postnet_K,
                      num_highways=hp.tts_num_highways,
-                     dropout=hp.tts_dropout).to(device=device)
+                     dropout=hp.tts_dropout).to(device)
 
     optimizer = optim.Adam(model.parameters())
     restore_checkpoint(paths, model, optimizer, create_if_missing=True)
@@ -92,7 +92,7 @@ def main():
     print('\n\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta\n')
 
 
-def tts_train_loop(paths, model: Tacotron, optimizer, train_set, lr, train_steps, attn_example):
+def tts_train_loop(paths: Paths, model: Tacotron, optimizer, train_set, lr, train_steps, attn_example):
     device = next(model.parameters()).device  # use same device as model parameters
 
     for g in optimizer.param_groups: g['lr'] = lr
@@ -108,8 +108,6 @@ def tts_train_loop(paths, model: Tacotron, optimizer, train_set, lr, train_steps
         # Perform 1 epoch
         for i, (x, m, ids, _) in enumerate(train_set, 1):
 
-            optimizer.zero_grad()
-
             x, m = x.to(device), m.to(device)
 
             # Parallelize model onto GPUS using workaround due to python bug
@@ -123,8 +121,7 @@ def tts_train_loop(paths, model: Tacotron, optimizer, train_set, lr, train_steps
 
             loss = m1_loss + m2_loss
 
-            running_loss += loss.item()
-
+            optimizer.zero_grad()
             loss.backward()
             if hp.tts_clip_grad_norm is not None:
                 grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
@@ -133,12 +130,13 @@ def tts_train_loop(paths, model: Tacotron, optimizer, train_set, lr, train_steps
 
             optimizer.step()
 
-            step = model.get_step()
-            k = step // 1000
+            running_loss += loss.item()
+            avg_loss = running_loss / i
 
             speed = i / (time.time() - start)
 
-            avg_loss = running_loss / i
+            step = model.get_step()
+            k = step // 1000
 
             if step % hp.tts_checkpoint_every == 0:
                 ckpt_name = f'taco_step{k}K'

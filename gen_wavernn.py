@@ -63,16 +63,25 @@ if __name__ == "__main__":
     parser.add_argument('--weights', '-w', type=str, help='[string/path] checkpoint file to load weights from')
     parser.add_argument('--gta', '-g', dest='gta', action='store_true', help='Generate from GTA testset')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
+    parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
 
-    parser.set_defaults(batched=hp.voc_gen_batched)
-    parser.set_defaults(samples=hp.voc_gen_at_checkpoint)
-    parser.set_defaults(target=hp.voc_target)
-    parser.set_defaults(overlap=hp.voc_overlap)
     parser.set_defaults(file=None)
     parser.set_defaults(weights=None)
     parser.set_defaults(gta=False)
+    parser.set_defaults(batched=None)
 
     args = parser.parse_args()
+
+    hp.configure(args.hp_file)  # Load hparams from file
+    # set defaults for any arguments that depend on hparams
+    if args.target is None:
+        args.target = hp.voc_target
+    if args.overlap is None:
+        args.overlap = hp.voc_overlap
+    if args.batched is None:
+        args.batched = hp.voc_gen_batched
+    if args.samples is None:
+        args.samples = hp.voc_gen_at_checkpoint
 
     batched = args.batched
     samples = args.samples
@@ -106,7 +115,7 @@ if __name__ == "__main__":
 
     restore_path = args.weights if args.weights else paths.voc_latest_weights
 
-    model.restore(restore_path)
+    model.load(restore_path)
 
     simple_table([('Generation Mode', 'Batched' if batched else 'Unbatched'),
                   ('Target Samples', target if batched else 'N/A'),

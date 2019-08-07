@@ -105,7 +105,7 @@ class WaveRNN(nn.Module):
 
         # List of rnns to call `flatten_parameters()` on
         self._to_flatten = []
-        
+
         self.rnn_dims = rnn_dims
         self.aux_dims = res_out_dims // 4
         self.hop_length = hop_length
@@ -113,11 +113,11 @@ class WaveRNN(nn.Module):
 
         self.upsample = UpsampleNetwork(feat_dims, upsample_factors, compute_dims, res_blocks, res_out_dims, pad)
         self.I = nn.Linear(feat_dims + self.aux_dims + 1, rnn_dims)
-        
+
         self.rnn1 = nn.GRU(rnn_dims, rnn_dims, batch_first=True)
         self.rnn2 = nn.GRU(rnn_dims + self.aux_dims, rnn_dims, batch_first=True)
         self._to_flatten += [self.rnn1, self.rnn2]
-        
+
         self.fc1 = nn.Linear(rnn_dims + self.aux_dims, fc_dims)
         self.fc2 = nn.Linear(fc_dims + self.aux_dims, fc_dims)
         self.fc3 = nn.Linear(fc_dims, self.n_classes)
@@ -131,11 +131,11 @@ class WaveRNN(nn.Module):
     def forward(self, x, mels):
         device = next(self.parameters()).device  # use same device as parameters
 
-        # Although we `_flatten_parameters()` on init, when using DataParallel 
+        # Although we `_flatten_parameters()` on init, when using DataParallel
         # the model gets replicated, making it no longer guaranteed that the
         # weights are contiguous in GPU memory. Hence, we must call it again
         self._flatten_parameters()
-        
+
         self.step += 1
         bsize = x.size(0)
         h1 = torch.zeros(1, bsize, self.rnn_dims, device=device)
@@ -168,7 +168,7 @@ class WaveRNN(nn.Module):
 
     def generate(self, mels, save_path: Union[str, Path], batched, target, overlap, mu_law):
         self.eval()
-        
+
         device = next(self.parameters()).device  # use same device as parameters
 
         mu_law = mu_law if self.mode == 'RAW' else False
@@ -406,25 +406,9 @@ class WaveRNN(nn.Module):
     def get_step(self):
         return self.step.data.item()
 
-    def checkpoint(self, path: Union[str, Path], optimizer):
-        # Optimizer can be given as an argument because checkpoint function is
-        # only useful in context of already existing training process.
-        if isinstance(path, str): path = Path(path)
-        k_steps = self.get_step() // 1000
-        self.save(path/f'checkpoint_{k_steps}k_steps.pyt')
-        torch.save(optimizer.state_dict(), path/f'checkpoint_{k_steps}k_steps_optim.pyt')
-
     def log(self, path, msg):
         with open(path, 'a') as f:
             print(msg, file=f)
-
-    def restore(self, path: Union[str, Path]):
-        if not os.path.exists(path):
-            print('\nNew WaveRNN Training Session...\n')
-            self.save(path)
-        else:
-            print(f'\nLoading Weights: "{path}"\n')
-            self.load(path)
 
     def load(self, path: Union[str, Path]):
         # Use device of model params as location for loaded state

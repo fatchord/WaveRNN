@@ -20,13 +20,23 @@ if __name__ == "__main__":
     parser.add_argument('--weights_path', '-w', type=str, help='[string/path] Load in different Tacotron Weights')
     parser.add_argument('--save_attention', '-a', dest='save_attn', action='store_true', help='Save Attention Plots')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
-    parser.set_defaults(batched=hp.voc_gen_batched)
-    parser.set_defaults(target=hp.voc_target)
-    parser.set_defaults(overlap=hp.voc_overlap)
+    parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
+
+    parser.set_defaults(batched=None)
     parser.set_defaults(input_text=None)
     parser.set_defaults(weights_path=None)
     parser.set_defaults(save_attention=False)
+
     args = parser.parse_args()
+
+    hp.configure(args.hp_file)  # Load hparams from file
+    # set defaults for any arguments that depend on hparams
+    if args.target is None:
+        args.target = hp.voc_target
+    if args.overlap is None:
+        args.overlap = hp.voc_overlap
+    if args.batched is None:
+        args.batched = hp.voc_gen_batched
 
     batched = args.batched
     target = args.target
@@ -59,7 +69,7 @@ if __name__ == "__main__":
                         sample_rate=hp.sample_rate,
                         mode=hp.voc_mode).to(device)
 
-    voc_model.restore(paths.voc_latest_weights)
+    voc_model.load(paths.voc_latest_weights)
 
     print('\nInitialising Tacotron Model...\n')
 
@@ -78,7 +88,7 @@ if __name__ == "__main__":
                          dropout=hp.tts_dropout).to(device)
 
     tts_restore_path = weights_path if weights_path else paths.tts_latest_weights
-    tts_model.restore(tts_restore_path)
+    tts_model.load(tts_restore_path)
 
     if input_text:
         inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]
