@@ -56,7 +56,8 @@ def main():
                      lstm_dims=hp.tts_lstm_dims,
                      postnet_K=hp.tts_postnet_K,
                      num_highways=hp.tts_num_highways,
-                     dropout=hp.tts_dropout).to(device)
+                     dropout=hp.tts_dropout,
+                     stop_threshold=hp.tts_stop_threshold).to(device)
 
     optimizer = optim.Adam(model.parameters())
     restore_checkpoint(paths, model, optimizer, create_if_missing=True)

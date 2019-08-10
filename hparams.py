@@ -64,7 +64,6 @@ voc_overlap = 550                   # number of samples for crossfading between 
 
 
 # Model Hparams
-tts_r = 1                           # model predicts r frames per output step
 tts_embed_dims = 256                # embedding dimension for the graphemes/phoneme inputs
 tts_encoder_dims = 128
 tts_decoder_dims = 256
@@ -75,9 +74,12 @@ tts_postnet_K = 8
 tts_num_highways = 4
 tts_dropout = 0.5
 tts_cleaner_names = ['english_cleaners']
+tts_stop_threshold = -3.4           # Value below which audio generation ends.
+                                    # For example, for a range of [-4, 4], this
+                                    # will terminate the sequence at the first
+                                    # frame that has all values < -3.4
 
 # Training
-
 
 tts_schedule = [(7,  1e-3,  10_000,  32),   # progressive training schedule
                 (5,  1e-4, 100_000,  32),   # (r, lr, step, batch_size)

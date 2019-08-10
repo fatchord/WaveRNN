@@ -102,7 +102,8 @@ if __name__ == "__main__":
                          lstm_dims=hp.tts_lstm_dims,
                          postnet_K=hp.tts_postnet_K,
                          num_highways=hp.tts_num_highways,
-                         dropout=hp.tts_dropout).to(device)
+                         dropout=hp.tts_dropout,
+                         stop_threshold=hp.tts_stop_threshold).to(device)
 
     tts_restore_path = weights_path if weights_path else paths.tts_latest_weights
     tts_model.load(tts_restore_path)

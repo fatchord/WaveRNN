@@ -281,7 +281,7 @@ class Decoder(nn.Module):
 
 class Tacotron(nn.Module):
     def __init__(self, embed_dims, num_chars, encoder_dims, decoder_dims, n_mels, fft_bins, postnet_dims,
-                 encoder_K, lstm_dims, postnet_K, num_highways, dropout):
+                 encoder_K, lstm_dims, postnet_K, num_highways, dropout, stop_threshold):
         super().__init__()
         self.n_mels = n_mels
         self.lstm_dims = lstm_dims
@@ -297,6 +297,7 @@ class Tacotron(nn.Module):
         self.num_params()
 
         self.register_buffer('step', torch.zeros(1, dtype=torch.long))
+        self.register_buffer('stop_threshold', torch.tensor(stop_threshold, dtype=torch.float32))
 
     @property
     def r(self):
@@ -407,7 +408,7 @@ class Tacotron(nn.Module):
             mel_outputs.append(mel_frames)
             attn_scores.append(scores)
             # Stop the loop if silent frames present
-            if (mel_frames < -3.8).all() and t > 10: break
+            if (mel_frames < self.stop_threshold).all() and t > 10: break
 
         # Concat the mel outputs into sequence
         mel_outputs = torch.cat(mel_outputs, dim=2)
