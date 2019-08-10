@@ -8,6 +8,7 @@ import argparse
 from utils.text import text_to_sequence
 from utils.display import save_attention, simple_table
 from utils.dsp import reconstruct_waveform, save_wav
+import numpy as np
 
 if __name__ == "__main__":
 
@@ -21,7 +22,6 @@ if __name__ == "__main__":
 
     parser.set_defaults(input_text=None)
     parser.set_defaults(weights_path=None)
-    parser.set_defaults(save_attention=False)
 
     # name of subcommand goes to args.vocoder
     subparsers = parser.add_subparsers(required=True, dest='vocoder')
@@ -61,7 +61,7 @@ if __name__ == "__main__":
 
     input_text = args.input_text
     weights_path = args.weights_path
-    save_attn = args.save_attention
+    save_attn = args.save_attn
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
@@ -136,6 +136,9 @@ if __name__ == "__main__":
 
         print(f'\n| Generating {i}/{len(inputs)}')
         _, m, attention = tts_model.generate(x)
+        # Fix mel spectrogram scaling to be from 0 to 1
+        m = (m + 4) / 8
+        np.clip(m, 0, 1, out=m)
 
         if args.vocoder == 'griffinlim':
             v_type = args.vocoder
@@ -153,12 +156,9 @@ if __name__ == "__main__":
 
         if args.vocoder == 'wavernn':
             m = torch.tensor(m).unsqueeze(0)
-            m = (m + 4) / 8
-
             voc_model.generate(m, save_path, batched, hp.voc_target, hp.voc_overlap, hp.mu_law)
         elif args.vocoder == 'griffinlim':
             wav = reconstruct_waveform(m, n_iter=args.iters)
             save_wav(wav, save_path)
-
 
     print('\n\nDone.\n')

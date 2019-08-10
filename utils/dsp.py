@@ -39,7 +39,7 @@ def encode_16bits(x):
 
 
 def linear_to_mel(spectrogram):
-    librosa.feature.melspectrogram(
+    return librosa.feature.melspectrogram(
         S=spectrogram, sr=hp.sample_rate, n_fft=hp.n_fft, n_mels=hp.num_mels, fmin=hp.fmin)
 
 '''
@@ -77,7 +77,7 @@ def melspectrogram(y):
 
 def stft(y):
     return librosa.stft(
-        y=y, sr=hp.sample_rate,
+        y=y,
         n_fft=hp.n_fft, hop_length=hp.hop_length, win_length=hp.win_length)
 
 
