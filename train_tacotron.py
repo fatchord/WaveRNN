@@ -63,10 +63,10 @@ def main():
     optimizer = optim.Adam(model.parameters())
     restore_checkpoint(paths, model, optimizer, create_if_missing=True)
 
-    current_step = model.get_step()
-
     if not force_gta:
         for i, session in enumerate(hp.tts_schedule):
+            current_step = model.get_step()
+
             r, lr, max_step, batch_size = session
 
             training_steps = max_step - current_step
