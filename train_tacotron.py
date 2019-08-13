@@ -116,7 +116,7 @@ def tts_train_loop(paths: Paths, model: Tacotron, optimizer, train_set, lr, trai
     total_iters = len(train_set)
     epochs = train_steps // total_iters + 1
 
-    for e in range(epochs):
+    for e in range(1, epochs+1):
 
         start = time.time()
         running_loss = 0
