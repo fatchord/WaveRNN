@@ -15,7 +15,7 @@ if __name__ == "__main__":
     # Parse Arguments
     parser = argparse.ArgumentParser(description='TTS Generator')
     parser.add_argument('--input_text', '-i', type=str, help='[string] Type in something here and TTS will generate it!')
-    parser.add_argument('--weights_path', '-w', type=str, help='[string/path] Load in different Tacotron Weights')
+    parser.add_argument('--tts_weights', type=str, help='[string/path] Load in different Tacotron weights')
     parser.add_argument('--save_attention', '-a', dest='save_attn', action='store_true', help='Save Attention Plots')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
     parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
@@ -31,6 +31,7 @@ if __name__ == "__main__":
     wr_parser.add_argument('--unbatched', '-u', dest='batched', action='store_false', help='Slow Unbatched Generation')
     wr_parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     wr_parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
+    wr_parser.add_argument('--voc_weights', type=str, help='[string/path] Load in different WaveRNN weights')
     wr_parser.set_defaults(batched=None)
 
     gl_parser = subparsers.add_parser('griffinlim', aliases=['gl'])
@@ -60,7 +61,7 @@ if __name__ == "__main__":
         overlap = args.overlap
 
     input_text = args.input_text
-    weights_path = args.weights_path
+    tts_weights = args.tts_weights
     save_attn = args.save_attn
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
@@ -86,7 +87,9 @@ if __name__ == "__main__":
                             hop_length=hp.hop_length,
                             sample_rate=hp.sample_rate,
                             mode=hp.voc_mode).to(device)
-        voc_model.load(paths.voc_latest_weights)
+
+        voc_load_path = args.voc_weights if args.voc_weights else paths.voc_latest_weights
+        voc_model.load(voc_load_path)
 
     print('\nInitialising Tacotron Model...\n')
 
@@ -105,8 +108,8 @@ if __name__ == "__main__":
                          dropout=hp.tts_dropout,
                          stop_threshold=hp.tts_stop_threshold).to(device)
 
-    tts_restore_path = weights_path if weights_path else paths.tts_latest_weights
-    tts_model.load(tts_restore_path)
+    tts_load_path = tts_weights if tts_weights else paths.tts_latest_weights
+    tts_model.load(tts_load_path)
 
     if input_text:
         inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]

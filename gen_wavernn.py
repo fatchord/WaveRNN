@@ -61,14 +61,11 @@ if __name__ == "__main__":
     parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     parser.add_argument('--file', '-f', type=str, help='[string/path] for testing a wav outside dataset')
-    parser.add_argument('--weights', '-w', type=str, help='[string/path] checkpoint file to load weights from')
+    parser.add_argument('--voc_weights', '-w', type=str, help='[string/path] Load in different WaveRNN weights')
     parser.add_argument('--gta', '-g', dest='gta', action='store_true', help='Generate from GTA testset')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
     parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
 
-    parser.set_defaults(file=None)
-    parser.set_defaults(weights=None)
-    parser.set_defaults(gta=False)
     parser.set_defaults(batched=None)
 
     args = parser.parse_args()
@@ -114,9 +111,9 @@ if __name__ == "__main__":
 
     paths = Paths(hp.data_path, hp.voc_model_id, hp.tts_model_id)
 
-    restore_path = args.weights if args.weights else paths.voc_latest_weights
+    voc_weights = args.voc_weights if args.voc_weights else paths.voc_latest_weights
 
-    model.load(restore_path)
+    model.load(voc_weights)
 
     simple_table([('Generation Mode', 'Batched' if batched else 'Unbatched'),
                   ('Target Samples', target if batched else 'N/A'),
