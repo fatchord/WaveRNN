@@ -35,15 +35,28 @@ def gen_testset(model: WaveRNN, test_set, samples, batched, target, overlap, sav
         _ = model.generate(m, save_str, batched, target, overlap, hp.mu_law)
 
 
-def gen_from_file(model: WaveRNN, load_path, save_path: Path, batched, target, overlap):
+def gen_from_file(model: WaveRNN, load_path: Path, save_path: Path, batched, target, overlap):
 
     k = model.get_step() // 1000
-    file_name = load_path.split('/')[-1]
+    file_name = load_path.stem
 
-    wav = load_wav(load_path)
-    save_wav(wav, save_path/f'__{file_name}__{k}k_steps_target.wav')
+    suffix = load_path.suffix
+    if suffix == ".wav":
+        wav = load_wav(load_path)
+        save_wav(wav, save_path/f'__{file_name}__{k}k_steps_target.wav')
+        mel = melspectrogram(wav)
+    elif suffix == ".npy":
+        mel = np.load(load_path)
+        if mel.ndim != 2 or mel.shape[0] != hp.num_mels:
+            raise ValueError(f'Expected a numpy array shaped (n_mels, n_hops), but got {wav.shape}!')
+        _max = np.max(mel)
+        _min = np.min(mel)
+        if _max >= 1.01 or _min <= -0.01:
+            raise ValueError(f'Expected spectrogram range in [0,1] but was instead [{_min}, {_max}]')
+    else:
+        raise ValueError(f"Expected an extension of .wav or .npy, but got {suffix}!")
 
-    mel = melspectrogram(wav)
+
     mel = torch.tensor(mel).unsqueeze(0)
 
     batch_str = f'gen_batched_target{target}_overlap{overlap}' if batched else 'gen_NOT_BATCHED'
@@ -119,11 +132,11 @@ if __name__ == "__main__":
                   ('Target Samples', target if batched else 'N/A'),
                   ('Overlap Samples', overlap if batched else 'N/A')])
 
-    _, test_set = get_vocoder_datasets(paths.data, 1, gta)
-
     if file:
+        file = Path(file).expanduser()
         gen_from_file(model, file, paths.voc_output, batched, target, overlap)
     else:
+        _, test_set = get_vocoder_datasets(paths.data, 1, gta)
         gen_testset(model, test_set, samples, batched, target, overlap, paths.voc_output)
 
     print('\n\nExiting...\n')
