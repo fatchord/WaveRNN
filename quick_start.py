@@ -31,18 +31,21 @@ if __name__ == "__main__":
     parser.add_argument('--target', '-t', type=int, help='[int] number of samples in each batch index')
     parser.add_argument('--overlap', '-o', type=int, help='[int] number of crossover samples')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
+    parser.add_argument('--hp_file', metavar='FILE', default='hparams.py',
+                        help='The file to use for the hyperparameters')
+    args = parser.parse_args()
+
+    hp.configure(args.hp_file)  # Load hparams from file
+
     parser.set_defaults(batched=hp.voc_gen_batched)
     parser.set_defaults(target=hp.voc_target)
     parser.set_defaults(overlap=hp.voc_overlap)
     parser.set_defaults(input_text=None)
-    parser.set_defaults(weights_path=None)
-    args = parser.parse_args()
 
     batched = args.batched
     target = args.target
     overlap = args.overlap
     input_text = args.input_text
-    weights_path = args.weights_path
 
     if not args.force_cpu and torch.cuda.is_available():
         device = torch.device('cuda')
@@ -66,7 +69,7 @@ if __name__ == "__main__":
                         sample_rate=hp.sample_rate,
                         mode='MOL').to(device)
 
-    voc_model.restore('quick_start/voc_weights/latest_weights.pyt')
+    voc_model.load('quick_start/voc_weights/latest_weights.pyt')
 
     print('\nInitialising Tacotron Model...\n')
 
@@ -86,7 +89,7 @@ if __name__ == "__main__":
                          stop_threshold=hp.tts_stop_threshold).to(device)
 
 
-    tts_model.restore('quick_start/tts_weights/latest_weights.pyt')
+    tts_model.load('quick_start/tts_weights/latest_weights.pyt')
 
     if input_text:
         inputs = [text_to_sequence(input_text.strip(), hp.tts_cleaner_names)]
@@ -97,7 +100,8 @@ if __name__ == "__main__":
     voc_k = voc_model.get_step() // 1000
     tts_k = tts_model.get_step() // 1000
 
-    r = tts_model.get_r()
+    # TODO: get rid of this hardcoding
+    r = 2
 
     simple_table([('WaveRNN', str(voc_k) + 'k'),
                   (f'Tacotron(r={r})', str(tts_k) + 'k'),
