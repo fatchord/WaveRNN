@@ -12,6 +12,7 @@ from gen_wavernn import gen_testset
 from utils.paths import Paths
 import argparse
 from utils import data_parallel_workaround
+from utils.checkpoints import save_checkpoint, restore_checkpoint
 
 
 def main():
@@ -67,7 +68,7 @@ def main():
     assert np.cumprod(hp.voc_upsample_factors)[-1] == hp.hop_length
 
     optimizer = optim.Adam(voc_model.parameters())
-    restore_checkpoint(paths, voc_model, optimizer, create_if_missing=True)
+    restore_checkpoint('voc', paths, voc_model, optimizer, create_if_missing=True)
 
     train_set, test_set = get_vocoder_datasets(paths.data, batch_size, train_gta)
 
@@ -141,7 +142,7 @@ def voc_train_loop(paths: Paths, model: WaveRNN, loss_func, optimizer, train_set
                 gen_testset(model, test_set, hp.voc_gen_at_checkpoint, hp.voc_gen_batched,
                             hp.voc_target, hp.voc_overlap, paths.voc_output)
                 ckpt_name = f'wave_step{k}K'
-                save_checkpoint(paths, model, optimizer,
+                save_checkpoint('voc', paths, model, optimizer,
                                 name=ckpt_name, is_silent=True)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:.4f} | {speed:.1f} steps/s | Step: {k}k | '
@@ -149,104 +150,9 @@ def voc_train_loop(paths: Paths, model: WaveRNN, loss_func, optimizer, train_set
 
         # Must save latest optimizer state to ensure that resuming training
         # doesn't produce artifacts
-        save_checkpoint(paths, model, optimizer, is_silent=True)
+        save_checkpoint('voc', paths, model, optimizer, is_silent=True)
         model.log(paths.voc_log, msg)
         print(' ')
-
-
-def save_checkpoint(paths: Paths, model: WaveRNN, optimizer, *,
-        name=None, is_silent=False):
-    """Saves the training session to disk.
-
-    Args:
-        paths:  Provides information about the different paths to use.
-        model:  A `WaveRNN` model to save the parameters and buffers from.
-        optimizer:  An optmizer to save the state of (momentum, etc).
-        name:  If provided, will name to a checkpoint with the given name. Note
-            that regardless of whether this is provided or not, this function
-            will always update the files specified in `paths` that give the
-            location of the latest weights and optimizer state. Saving
-            a named checkpoint happens in addition to this update.
-    """
-    def helper(path_dict, is_named):
-        s = 'named' if is_named else 'latest'
-        num_exist = sum(p.exists() for p in path_dict.values())
-
-        if num_exist not in (0,2):
-            # Checkpoint broken
-            raise FileNotFoundError(
-                f'We expected either both or no files in the {s} checkpoint to '
-                'exist, but instead we got exactly one!')
-
-        if num_exist == 0:
-            if not is_silent: print(f'Creating {s} checkpoint...')
-            for p in path_dict.values():
-                p.parent.mkdir(parents=True, exist_ok=True)
-        else:
-            if not is_silent: print(f'Saving to existing {s} checkpoint...')
-
-        if not is_silent: print(f'Saving {s} weights: {path_dict["w"]}')
-        model.save(path_dict['w'])
-        if not is_silent: print(f'Saving {s} optimizer state: {path_dict["o"]}')
-        torch.save(optimizer.state_dict(), path_dict['o'])
-
-    latest_paths = {'w': paths.voc_latest_weights, 'o': paths.voc_latest_optim}
-    helper(latest_paths, False)
-
-    if name:
-        named_paths ={
-            'w': paths.voc_checkpoints/f'{name}_weights.pyt',
-            'o': paths.voc_checkpoints/f'{name}_optim.pyt',
-        }
-        helper(named_paths, True)
-
-
-def restore_checkpoint(paths: Paths, model: WaveRNN, optimizer, *,
-        name=None, create_if_missing=False):
-    """Restores from a training session saved to disk.
-
-    NOTE: The optimizer's state is placed on the same device as it's model
-    parameters. Therefore, be sure you have done `model.to(device)` before
-    calling this method.
-
-    Args:
-        paths:  Provides information about the different paths to use.
-        model:  A `WaveRNN` model to save the parameters and buffers from.
-        optimizer:  An optmizer to save the state of (momentum, etc).
-        name:  If provided, will restore from a checkpoint with the given name.
-            Otherwise, will restore from the latest weights and optimizer state
-            as specified in `paths`.
-        create_if_missing:  If `True`, will create the checkpoint if it doesn't
-            yet exist, as well as update the files specified in `paths` that
-            give the location of the current latest weights and optimizer state.
-            If `False` and the checkpoint doesn't exist, will raise a
-            `FileNotFoundError`.
-    """
-    if name:
-        path_dict = {
-            'w': paths.voc_checkpoints/f'{name}_weights.pyt',
-            'o': paths.voc_checkpoints/f'{name}_optim.pyt',
-        }
-        s = 'named'
-    else:
-        path_dict = {
-            'w': paths.voc_latest_weights,
-            'o': paths.voc_latest_optim
-        }
-        s = 'latest'
-
-    num_exist = sum(p.exists() for p in path_dict.values())
-    if num_exist == 2:
-        # Checkpoint exists
-        print(f'Restoring from {s} checkpoint...')
-        print(f'Loading {s} weights: {path_dict["w"]}')
-        model.load(path_dict['w'])
-        print(f'Loading {s} optimizer state: {path_dict["o"]}')
-        optimizer.load_state_dict(torch.load(path_dict['o']))
-    elif create_if_missing:
-        save_checkpoint(paths, model, optimizer, name=name, is_silent=False)
-    else:
-        raise FileNotFoundError(f'The {s} checkpoint could not be found!')
 
 
 if __name__ == "__main__":
