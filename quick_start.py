@@ -100,8 +100,7 @@ if __name__ == "__main__":
     voc_k = voc_model.get_step() // 1000
     tts_k = tts_model.get_step() // 1000
 
-    # TODO: get rid of this hardcoding
-    r = 2
+    r = tts_model.r
 
     simple_table([('WaveRNN', str(voc_k) + 'k'),
                   (f'Tacotron(r={r})', str(tts_k) + 'k'),
