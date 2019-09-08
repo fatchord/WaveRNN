@@ -8,7 +8,7 @@ Pytorch implementation of Deepmind's WaveRNN model from [Efficient Neural Audio 
 
 # Installation
 
-Ensure you have: 
+Ensure you have:
 
 * Python >= 3.6
 * [Pytorch 1 with CUDA](https://pytorch.org/)
@@ -37,20 +37,20 @@ You can also use that script to generate custom tts sentences and/or use '-u' to
 
 Download the [LJSpeech](https://keithito.com/LJ-Speech-Dataset/) Dataset.
 
-Edit **hparams.py**, point **wav_path** to your dataset and run: 
+Edit **hparams.py**, point **wav_path** to your dataset and run:
 
 > python preprocess.py
 
 or use preprocess.py --path to point directly to the dataset
 ___
 
-Here's my recommendation on what order to run things: 
+Here's my recommendation on what order to run things:
 
 1 - Train Tacotron with:
 
 > python train_tacotron.py
 
-2 - You can leave that finish training or at any point you can use: 
+2 - You can leave that finish training or at any point you can use:
 
 > python train_tacotron.py --force_gta
 
@@ -64,11 +64,11 @@ NB: You can always just run train_wavernn.py without --gta if you're not interes
 
 4 - Generate Sentences with both models using:
 
-> python gen_tacotron.py
+> python gen_tacotron.py wavernn
 
 this will generate default sentences. If you want generate custom sentences you can use
 
-> python gen_tacotron.py --input_text "this is whatever you want it to be"
+> python gen_tacotron.py --input_text "this is whatever you want it to be" wavernn
 
 And finally, you can always use --help on any of those scripts to see what options are available :)
 
@@ -84,7 +84,7 @@ Currently there are two pretrained models available in the /pretrained/ folder':
 
 Both are trained on LJSpeech
 
-* WaveRNN (Mixture of Logistics output) trained to 800k steps 
+* WaveRNN (Mixture of Logistics output) trained to 800k steps
 * Tacotron trained to 180k steps
 
 ____
@@ -100,7 +100,3 @@ ____
 * [https://github.com/keithito/tacotron](https://github.com/keithito/tacotron)
 * [https://github.com/r9y9/wavenet_vocoder](https://github.com/r9y9/wavenet_vocoder)
 * Special thanks to github users [G-Wang](https://github.com/G-Wang), [geneing](https://github.com/geneing) & [erogol](https://github.com/erogol)
-
-
-
-

@@ -52,6 +52,7 @@ voc_total_steps = 1_000_000         # Total number of training steps
 voc_test_samples = 50               # How many unseen samples to put aside for testing
 voc_pad = 2                         # this will pad the input so that the resnet can 'see' wider than input length
 voc_seq_len = hop_length * 5        # must be a multiple of hop_length
+voc_clip_grad_norm = 4              # set to None if no gradient clipping needed
 
 # Generating / Synthesizing
 voc_gen_batched = True              # very fast (realtime+) single utterance batched generation
@@ -63,7 +64,6 @@ voc_overlap = 550                   # number of samples for crossfading between 
 
 
 # Model Hparams
-tts_r = 1                           # model predicts r frames per output step
 tts_embed_dims = 256                # embedding dimension for the graphemes/phoneme inputs
 tts_encoder_dims = 128
 tts_decoder_dims = 256
@@ -74,14 +74,17 @@ tts_postnet_K = 8
 tts_num_highways = 4
 tts_dropout = 0.5
 tts_cleaner_names = ['english_cleaners']
+tts_stop_threshold = -3.4           # Value below which audio generation ends.
+                                    # For example, for a range of [-4, 4], this
+                                    # will terminate the sequence at the first
+                                    # frame that has all values < -3.4
 
 # Training
-
 
 tts_schedule = [(7,  1e-3,  10_000,  32),   # progressive training schedule
                 (5,  1e-4, 100_000,  32),   # (r, lr, step, batch_size)
                 (2,  1e-4, 180_000,  16),
-                (1,  1e-4, 350_000,  8)]
+                (2,  1e-4, 350_000,  8)]
 
 tts_max_mel_len = 1250              # if you have a couple of extremely long spectrograms you might want to use this
 tts_bin_lengths = True              # bins the spectrogram lengths before sampling in data loader - speeds up training

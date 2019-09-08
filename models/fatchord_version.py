@@ -5,6 +5,9 @@ from utils.distribution import sample_from_discretized_mix_logistic
 from utils.display import *
 from utils.dsp import *
 import os
+import numpy as np
+from pathlib import Path
+from typing import Union
 
 
 class ResBlock(nn.Module):
@@ -100,6 +103,9 @@ class WaveRNN(nn.Module):
         else:
             RuntimeError("Unknown model mode value - ", self.mode)
 
+        # List of rnns to call `flatten_parameters()` on
+        self._to_flatten = []
+
         self.rnn_dims = rnn_dims
         self.aux_dims = res_out_dims // 4
         self.hop_length = hop_length
@@ -107,18 +113,29 @@ class WaveRNN(nn.Module):
 
         self.upsample = UpsampleNetwork(feat_dims, upsample_factors, compute_dims, res_blocks, res_out_dims, pad)
         self.I = nn.Linear(feat_dims + self.aux_dims + 1, rnn_dims)
+
         self.rnn1 = nn.GRU(rnn_dims, rnn_dims, batch_first=True)
         self.rnn2 = nn.GRU(rnn_dims + self.aux_dims, rnn_dims, batch_first=True)
+        self._to_flatten += [self.rnn1, self.rnn2]
+
         self.fc1 = nn.Linear(rnn_dims + self.aux_dims, fc_dims)
         self.fc2 = nn.Linear(fc_dims + self.aux_dims, fc_dims)
         self.fc3 = nn.Linear(fc_dims, self.n_classes)
 
-        self.step = nn.Parameter(torch.zeros(1).long(), requires_grad=False)
+        self.register_buffer('step', torch.zeros(1, dtype=torch.long))
         self.num_params()
+
+        # Avoid fragmentation of RNN parameters and associated warning
+        self._flatten_parameters()
 
     def forward(self, x, mels):
         device = next(self.parameters()).device  # use same device as parameters
-        
+
+        # Although we `_flatten_parameters()` on init, when using DataParallel
+        # the model gets replicated, making it no longer guaranteed that the
+        # weights are contiguous in GPU memory. Hence, we must call it again
+        self._flatten_parameters()
+
         self.step += 1
         bsize = x.size(0)
         h1 = torch.zeros(1, bsize, self.rnn_dims, device=device)
@@ -149,12 +166,13 @@ class WaveRNN(nn.Module):
         x = F.relu(self.fc2(x))
         return self.fc3(x)
 
-    def generate(self, mels, save_path, batched, target, overlap, mu_law):
+    def generate(self, mels, save_path: Union[str, Path], batched, target, overlap, mu_law):
+        self.eval()
+
         device = next(self.parameters()).device  # use same device as parameters
 
         mu_law = mu_law if self.mode == 'RAW' else False
 
-        self.eval()
         output = []
         start = time.time()
         rnn1 = self.get_gru_cell(self.rnn1)
@@ -226,13 +244,13 @@ class WaveRNN(nn.Module):
         output = output.cpu().numpy()
         output = output.astype(np.float64)
 
+        if mu_law:
+            output = decode_mu_law(output, self.n_classes, False)
+
         if batched:
             output = self.xfade_and_unfold(output, target, overlap)
         else:
             output = output[0]
-
-        if mu_law:
-            output = decode_mu_law(output, self.n_classes, False)
 
         # Fade-out at the end to avoid signal cutting out suddenly
         fade_out = np.linspace(1, 0, 20 * self.hop_length)
@@ -388,27 +406,19 @@ class WaveRNN(nn.Module):
     def get_step(self):
         return self.step.data.item()
 
-    def checkpoint(self, path):
-        k_steps = self.get_step() // 1000
-        self.save(f'{path}/checkpoint_{k_steps}k_steps.pyt')
-
     def log(self, path, msg):
         with open(path, 'a') as f:
             print(msg, file=f)
 
-    def restore(self, path):
-        if not os.path.exists(path):
-            print('\nNew WaveRNN Training Session...\n')
-            self.save(path)
-        else:
-            print(f'\nLoading Weights: "{path}"\n')
-            self.load(path)
-
-    def load(self, path, device='cpu'):
-        # because PyTorch places on CPU by default, we follow those semantics by using CPU as default.
+    def load(self, path: Union[str, Path]):
+        # Use device of model params as location for loaded state
+        device = next(self.parameters()).device
         self.load_state_dict(torch.load(path, map_location=device), strict=False)
 
-    def save(self, path):
+    def save(self, path: Union[str, Path]):
+        # No optimizer argument because saving a model should not include data
+        # only relevant in the training process - it should only be properties
+        # of the model itself. Let caller take care of saving optimzier state.
         torch.save(self.state_dict(), path)
 
     def num_params(self, print_out=True):
@@ -416,3 +426,9 @@ class WaveRNN(nn.Module):
         parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
         if print_out:
             print('Trainable Parameters: %.3fM' % parameters)
+        return parameters
+
+    def _flatten_parameters(self):
+        """Calls `flatten_parameters` on all the rnns used by the WaveRNN. Used
+        to improve efficiency and avoid PyTorch yelling at us."""
+        [m.flatten_parameters() for m in self._to_flatten]
