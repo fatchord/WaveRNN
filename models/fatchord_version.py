@@ -379,6 +379,7 @@ class WaveRNN(nn.Module):
         silence_len = overlap // 2
         fade_len = overlap - silence_len
         silence = np.zeros((silence_len), dtype=np.float64)
+        linear = np.ones((silence_len), dtype=np.float64)
 
         # Equal power crossfade
         t = np.linspace(-1, 1, fade_len, dtype=np.float64)
@@ -387,7 +388,7 @@ class WaveRNN(nn.Module):
 
         # Concat the silence to the fades
         fade_in = np.concatenate([silence, fade_in])
-        fade_out = np.concatenate([fade_out, silence])
+        fade_out = np.concatenate([linear, fade_out])
 
         # Apply the gain to the overlap samples
         y[:, :overlap] *= fade_in
