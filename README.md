@@ -29,7 +29,7 @@ This will generate everything in the default sentences.txt file and output to a 
 
 You can also use that script to generate custom tts sentences and/or use '-u' to generate unbatched (better audio quality):
 
-> python quick_start.py -u --input_text "What will happen if I run this command?'
+> python quick_start.py -u --input_text "What will happen if I run this command?"
 
 
 ### Training your own Models
