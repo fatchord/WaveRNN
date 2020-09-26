@@ -1,5 +1,6 @@
 numpy==1.16.2
-librosa==0.6.3
+librosa
+soundfile
 matplotlib
 unidecode
 inflect
