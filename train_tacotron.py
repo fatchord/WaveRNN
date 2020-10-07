@@ -64,7 +64,7 @@ def main():
                      stop_threshold=hp.tts_stop_threshold).to(device)
 
     optimizer = optim.Adam(model.parameters())
-    restore_checkpoint('tts', paths, model, optimizer, create_if_missing=True,name=args.filename,warmstart=args.warm_start)
+    restore_checkpoint('tts', paths, model, optimizer, create_if_missing=True, name=args.filename, warmstart=args.warm_start)
 
     if not force_gta:
         for i, session in enumerate(hp.tts_schedule):
