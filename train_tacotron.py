@@ -27,6 +27,8 @@ def main():
     parser.add_argument('--force_gta', '-g', action='store_true', help='Force the model to create GTA features')
     parser.add_argument('--force_cpu', '-c', action='store_true', help='Forces CPU-only training, even when in CUDA capable environment')
     parser.add_argument('--hp_file', metavar='FILE', default='hparams.py', help='The file to use for the hyperparameters')
+    parser.add_argument('--filename',help='Name of the file without _weights or _optim')
+    parser.add_argument('--warm_start', default=False, help='Load only weights')
     args = parser.parse_args()
 
     hp.configure(args.hp_file)  # Load hparams from file
@@ -62,10 +64,15 @@ def main():
                      stop_threshold=hp.tts_stop_threshold).to(device)
 
     optimizer = optim.Adam(model.parameters())
-    restore_checkpoint('tts', paths, model, optimizer, create_if_missing=True)
+    restore_checkpoint('tts', paths, model, optimizer, create_if_missing=True, name=args.filename, warmstart=args.warm_start)
 
     if not force_gta:
         for i, session in enumerate(hp.tts_schedule):
+
+            if args.warm_start:
+                #set step to 1
+                model.reset_step()
+                
             current_step = model.get_step()
 
             r, lr, max_step, batch_size = session
