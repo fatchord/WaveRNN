@@ -149,7 +149,7 @@ def tts_train_loop(paths: Paths, model: Tacotron, optimizer, train_set, lr, trai
             loss.backward()
             if hp.tts_clip_grad_norm is not None:
                 grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
-                if np.isnan(grad_norm):
+                if np.isnan(grad_norm.cpu()):
                     print('grad_norm was NaN!')
 
             optimizer.step()
