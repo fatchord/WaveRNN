@@ -67,11 +67,11 @@ def main():
     restore_checkpoint('tts', paths, model, optimizer, create_if_missing=True, name=args.filename, warmstart=args.warm_start)
 
     if not force_gta:
+        if args.warm_start:
+            #set step to 1
+            model.reset_step()
         for i, session in enumerate(hp.tts_schedule):
 
-            if args.warm_start:
-                #set step to 1
-                model.reset_step()
                 
             current_step = model.get_step()
 
