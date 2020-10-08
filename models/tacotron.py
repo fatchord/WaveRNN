@@ -438,7 +438,7 @@ class Tacotron(nn.Module):
 
     def reset_step(self):
         # assignment to parameters or buffers is overloaded, updates internal dict entry
-        self.step = self.step.data.new_tensor(1)
+        self.step = self.step.data.new_tensor([0])
 
     def log(self, path, msg):
         with open(path, 'a') as f:
