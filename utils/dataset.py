@@ -106,10 +106,10 @@ def get_tts_datasets(path: Path, batch_size, r):
     dataset_ids = []
     mel_lengths = []
 
-    for (item_id, len) in dataset:
-        if len <= hp.tts_max_mel_len:
+    for (item_id, mel_len) in dataset:
+        if mel_len <= hp.tts_max_mel_len:
             dataset_ids += [item_id]
-            mel_lengths += [len]
+            mel_lengths += [mel_len]
 
     with open(path/'text_dict.pkl', 'rb') as f:
         text_dict = pickle.load(f)
