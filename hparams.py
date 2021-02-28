@@ -53,6 +53,7 @@ voc_test_samples = 50               # How many unseen samples to put aside for t
 voc_pad = 2                         # this will pad the input so that the resnet can 'see' wider than input length
 voc_seq_len = hop_length * 5        # must be a multiple of hop_length
 voc_clip_grad_norm = 4              # set to None if no gradient clipping needed
+voc_use_mixed_precision = True      # Enable mixed precision
 
 # Generating / Synthesizing
 voc_gen_batched = True              # very fast (realtime+) single utterance batched generation
@@ -91,7 +92,7 @@ tts_bin_lengths = True              # bins the spectrogram lengths before sampli
 tts_clip_grad_norm = 1.0            # clips the gradient norm to prevent explosion - set to None if not needed
 tts_checkpoint_every = 2_000        # checkpoints the model every X steps
 # TODO: tts_phoneme_prob = 0.0              # [0 <-> 1] probability for feeding model phonemes vrs graphemes
-
+tts_use_mixed_precision = False     # Enable mixed precision
 
 # ------------------------------------------------------------------------------------------------------------------#
 
