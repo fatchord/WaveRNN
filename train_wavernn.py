@@ -68,7 +68,11 @@ def main():
     assert np.cumprod(hp.voc_upsample_factors)[-1] == hp.hop_length
 
     optimizer = optim.Adam(voc_model.parameters())
-    restore_checkpoint('voc', paths, voc_model, optimizer, create_if_missing=True)
+    scaler = torch.cuda.amp.GradScaler() if hp.voc_use_mixed_precision and device.type == 'cuda' else None
+
+    print('Using mixed precision:', scaler is not None)
+
+    restore_checkpoint('voc', paths, voc_model, optimizer, scaler, create_if_missing=True)
 
     train_set, test_set = get_vocoder_datasets(paths.data, batch_size, train_gta)
 
@@ -82,13 +86,13 @@ def main():
 
     loss_func = F.cross_entropy if voc_model.mode == 'RAW' else discretized_mix_logistic_loss
 
-    voc_train_loop(paths, voc_model, loss_func, optimizer, train_set, test_set, lr, total_steps)
+    voc_train_loop(paths, voc_model, loss_func, optimizer, scaler, train_set, test_set, lr, total_steps)
 
     print('Training Complete.')
     print('To continue training increase voc_total_steps in hparams.py or use --force_train')
 
 
-def voc_train_loop(paths: Paths, model: WaveRNN, loss_func, optimizer, train_set, test_set, lr, total_steps):
+def voc_train_loop(paths: Paths, model: WaveRNN, loss_func, optimizer, scaler, train_set, test_set, lr, total_steps):
     # Use same device as model parameters
     device = next(model.parameters()).device
 
@@ -105,30 +109,43 @@ def voc_train_loop(paths: Paths, model: WaveRNN, loss_func, optimizer, train_set
         for i, (x, y, m) in enumerate(train_set, 1):
             x, m, y = x.to(device), m.to(device), y.to(device)
 
-            # Parallelize model onto GPUS using workaround due to python bug
-            if device.type == 'cuda' and torch.cuda.device_count() > 1:
-                y_hat = data_parallel_workaround(model, x, m)
-            else:
-                y_hat = model(x, m)
-
-            if model.mode == 'RAW':
-                y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
-
-            elif model.mode == 'MOL':
-                y = y.float()
-
-            y = y.unsqueeze(-1)
-
-
-            loss = loss_func(y_hat, y)
-
             optimizer.zero_grad()
-            loss.backward()
-            if hp.voc_clip_grad_norm is not None:
-                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.voc_clip_grad_norm)
-                if np.isnan(grad_norm):
-                    print('grad_norm was NaN!')
-            optimizer.step()
+
+            with torch.cuda.amp.autocast(enabled=scaler is not None):
+                # Parallelize model onto GPUS using workaround due to python bug
+                if device.type == 'cuda' and torch.cuda.device_count() > 1:
+                    y_hat = data_parallel_workaround(model, x, m)
+                else:
+                    y_hat = model(x, m)
+
+                if model.mode == 'RAW':
+                    y_hat = y_hat.transpose(1, 2).unsqueeze(-1)
+
+                elif model.mode == 'MOL':
+                    y = y.float()
+
+                y = y.unsqueeze(-1)
+
+                loss = loss_func(y_hat, y)
+
+            if scaler is not None:
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                
+                if hp.voc_clip_grad_norm is not None:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
+                    if np.isnan(grad_norm):
+                       print('grad_norm was NaN!')  
+
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                if hp.voc_clip_grad_norm is not None:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.voc_clip_grad_norm)
+                    if np.isnan(grad_norm):
+                        print('grad_norm was NaN!')
+                optimizer.step()
 
             running_loss += loss.item()
             avg_loss = running_loss / i
@@ -142,7 +159,7 @@ def voc_train_loop(paths: Paths, model: WaveRNN, loss_func, optimizer, train_set
                 gen_testset(model, test_set, hp.voc_gen_at_checkpoint, hp.voc_gen_batched,
                             hp.voc_target, hp.voc_overlap, paths.voc_output)
                 ckpt_name = f'wave_step{k}K'
-                save_checkpoint('voc', paths, model, optimizer,
+                save_checkpoint('voc', paths, model, optimizer, scaler,
                                 name=ckpt_name, is_silent=True)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:.4f} | {speed:.1f} steps/s | Step: {k}k | '
@@ -150,7 +167,7 @@ def voc_train_loop(paths: Paths, model: WaveRNN, loss_func, optimizer, train_set
 
         # Must save latest optimizer state to ensure that resuming training
         # doesn't produce artifacts
-        save_checkpoint('voc', paths, model, optimizer, is_silent=True)
+        save_checkpoint('voc', paths, model, optimizer, scaler, is_silent=True)
         model.log(paths.voc_log, msg)
         print(' ')
 
