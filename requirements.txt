@@ -2,7 +2,7 @@ numpy<1.20
 requests~=2.23.0
 six~=1.15.0
 click<8.0
-librosa
+librosa~=0.7.0
 matplotlib
 unidecode
 inflect
@@ -12,3 +12,4 @@ folium==0.2.1
 typing-extensions<4
 Jinja2<3
 imgaug<0.2.7
+numba==0.49.1
