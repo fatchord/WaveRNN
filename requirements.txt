@@ -1,6 +1,14 @@
-numpy==1.16.2
-librosa==0.6.3
+numpy<1.20
+requests~=2.23.0
+six~=1.15.0
+click<8.0
+librosa
 matplotlib
 unidecode
 inflect
 nltk
+decorator<5
+folium==0.2.1
+typing-extensions<4
+Jinja2<3
+imgaug<0.2.7
