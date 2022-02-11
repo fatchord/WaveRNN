@@ -12,4 +12,4 @@ folium==0.2.1
 typing-extensions<4
 Jinja2<3
 imgaug<0.2.7
-numba==0.49.1
+numba==0.48.0
