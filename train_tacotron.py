@@ -62,7 +62,11 @@ def main():
                      stop_threshold=hp.tts_stop_threshold).to(device)
 
     optimizer = optim.Adam(model.parameters())
-    restore_checkpoint('tts', paths, model, optimizer, create_if_missing=True)
+    scaler = torch.cuda.amp.GradScaler() if hp.tts_use_mixed_precision and device.type == 'cuda' else None
+
+    print('Using mixed precision:', scaler is not None)
+
+    restore_checkpoint('tts', paths, model, optimizer, scaler, create_if_missing=True)
 
     if not force_gta:
         for i, session in enumerate(hp.tts_schedule):
@@ -95,7 +99,7 @@ def main():
                             ('Outputs/Step (r)', model.r)])
 
             train_set, attn_example = get_tts_datasets(paths.data, batch_size, r)
-            tts_train_loop(paths, model, optimizer, train_set, lr, training_steps, attn_example)
+            tts_train_loop(paths, model, optimizer, scaler, train_set, lr, training_steps, attn_example)
 
         print('Training Complete.')
         print('To continue training increase tts_total_steps in hparams.py or use --force_train\n')
@@ -109,7 +113,7 @@ def main():
     print('\n\nYou can now train WaveRNN on GTA features - use python train_wavernn.py --gta\n')
 
 
-def tts_train_loop(paths: Paths, model: Tacotron, optimizer, train_set, lr, train_steps, attn_example):
+def tts_train_loop(paths: Paths, model: Tacotron, optimizer, scaler, train_set, lr, train_steps, attn_example):
     device = next(model.parameters()).device  # use same device as model parameters
 
     for g in optimizer.param_groups: g['lr'] = lr
@@ -126,26 +130,40 @@ def tts_train_loop(paths: Paths, model: Tacotron, optimizer, train_set, lr, trai
         for i, (x, m, ids, _) in enumerate(train_set, 1):
 
             x, m = x.to(device), m.to(device)
-
-            # Parallelize model onto GPUS using workaround due to python bug
-            if device.type == 'cuda' and torch.cuda.device_count() > 1:
-                m1_hat, m2_hat, attention = data_parallel_workaround(model, x, m)
-            else:
-                m1_hat, m2_hat, attention = model(x, m)
-
-            m1_loss = F.l1_loss(m1_hat, m)
-            m2_loss = F.l1_loss(m2_hat, m)
-
-            loss = m1_loss + m2_loss
-
+            
             optimizer.zero_grad()
-            loss.backward()
-            if hp.tts_clip_grad_norm is not None:
-                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
-                if np.isnan(grad_norm):
-                    print('grad_norm was NaN!')
+            
+            with torch.cuda.amp.autocast(enabled=scaler is not None):
+                # Parallelize model onto GPUS using workaround due to python bug
+                if device.type == 'cuda' and torch.cuda.device_count() > 1:
+                    m1_hat, m2_hat, attention = data_parallel_workaround(model, x, m)
+                else:
+                    m1_hat, m2_hat, attention = model(x, m)
 
-            optimizer.step()
+                m1_loss = F.l1_loss(m1_hat, m)
+                m2_loss = F.l1_loss(m2_hat, m)
+
+                loss = m1_loss + m2_loss
+            
+            if scaler is not None:
+                scaler.scale(loss).backward()
+                scaler.unscale_(optimizer)
+                
+                if hp.tts_clip_grad_norm is not None:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
+                    if np.isnan(grad_norm):
+                       print('grad_norm was NaN!')  
+
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                loss.backward()
+                if hp.tts_clip_grad_norm is not None:
+                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
+                    if np.isnan(grad_norm):
+                       print('grad_norm was NaN!')
+    
+                optimizer.step()
 
             running_loss += loss.item()
             avg_loss = running_loss / i
@@ -157,20 +175,19 @@ def tts_train_loop(paths: Paths, model: Tacotron, optimizer, train_set, lr, trai
 
             if step % hp.tts_checkpoint_every == 0:
                 ckpt_name = f'taco_step{k}K'
-                save_checkpoint('tts', paths, model, optimizer,
+                save_checkpoint('tts', paths, model, optimizer, scaler,
                                 name=ckpt_name, is_silent=True)
 
             if attn_example in ids:
                 idx = ids.index(attn_example)
                 save_attention(np_now(attention[idx][:, :160]), paths.tts_attention/f'{step}')
-                save_spectrogram(np_now(m2_hat[idx]), paths.tts_mel_plot/f'{step}', 600)
 
             msg = f'| Epoch: {e}/{epochs} ({i}/{total_iters}) | Loss: {avg_loss:#.4} | {speed:#.2} steps/s | Step: {k}k | '
             stream(msg)
 
         # Must save latest optimizer state to ensure that resuming training
         # doesn't produce artifacts
-        save_checkpoint('tts', paths, model, optimizer, is_silent=True)
+        save_checkpoint('tts', paths, model, optimizer, scaler, is_silent=True)
         model.log(paths.tts_log, msg)
         print(' ')
 
