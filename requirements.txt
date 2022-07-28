@@ -1,5 +1,6 @@
 numpy==1.22.0
 librosa==0.6.3
+numba==0.48
 matplotlib
 unidecode
 inflect
