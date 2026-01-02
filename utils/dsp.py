@@ -3,6 +3,7 @@ import numpy as np
 import librosa
 from utils import hparams as hp
 from scipy.signal import lfilter
+from scipy.io import wavfile
 
 
 def label_2_float(x, bits):
@@ -20,8 +21,7 @@ def load_wav(path):
 
 
 def save_wav(x, path):
-    librosa.output.write_wav(path, x.astype(np.float32), sr=hp.sample_rate)
-
+    wavfile.write(path, hp.sample_rate, x.astype(np.float32))
 
 def split_signal(x):
     unsigned = x + 2**15
